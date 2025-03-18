@@ -1,0 +1,8 @@
+numpy
+pandas
+scipy
+pyswarm
+deap
+openpyxl
+reportlab
+matplotlib
