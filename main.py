@@ -1,5 +1,4 @@
 # main.py
-
 # Import necessary modules and functions
 from data_loader import load_data
 from utils import Player, Manager, score_player
