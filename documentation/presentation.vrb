@@ -1,0 +1,21 @@
+\frametitle{Manager Strategies}
+Each manager uses a metaheuristic to generate bids:
+		\begin{itemize}
+			\item \textbf{PSO}: Using the \texttt{pyswarm} library.
+			\item \textbf{DE}: Using \texttt{scipy.optimize.differential\_evolution}.
+			\item \textbf{ES}: Implemented via \texttt{deap}.
+		\end{itemize}
+		\vspace{0.5em}
+		\textbf{PSO Strategy Example:}
+		\begin{lstlisting}[language=Python, caption=manager_strategy_pso]
+			def manager_strategy_pso(manager, players_not_assigned):
+			# Define lower and upper bounds for bids
+			lb = np.zeros(len(players_not_assigned))
+			ub = np.full(len(players_not_assigned), max_bid_per_player)
+			
+			# Define fitness function for PSO
+			best_bids, _ = pso(fitness_func, lb, ub, swarmsize=40, maxiter=80)
+			
+			# Round bids to integers
+			return [int(round(b)) for b in best_bids]
+		\end{lstlisting}

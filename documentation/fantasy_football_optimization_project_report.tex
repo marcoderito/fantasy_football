@@ -1,0 +1,524 @@
+\documentclass[sigconf]{acmart}
+\usepackage{lmodern}
+\usepackage[T1]{fontenc}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{placeins}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{caption}
+\usepackage[utf8]{inputenc}
+\usepackage{placeins}
+\FloatBarrier
+
+
+\lstdefinestyle{mystyle}{
+	basicstyle=\ttfamily\footnotesize,
+	backgroundcolor=\color{gray!10},
+	frame=single,
+	keywordstyle=\color{blue},
+	commentstyle=\color{green!50!black},
+	breaklines=true,
+	numbers=left,
+	numberstyle=\tiny\color{gray},
+	captionpos=b
+}
+\lstset{style=mystyle}
+
+%%
+%% Rights and Conference/Journal info (you can remove or adjust as needed)
+\setcopyright{none}
+\copyrightyear{2025}
+\acmYear{2025}
+\acmDOI{none}
+\acmConference[Exam Global and Multi-Objective Optimization]{Exam Global and Multi-Objective Optimization}{2025}{Trieste, Italy}
+\acmBooktitle{Exam Global and Multi-Objective Optimization}
+\acmISBN{none}
+\settopmatter{printacmref=false}
+
+\title{Fantasy Football Optimization}
+
+\author{Marco De Rito - SM3800016}
+\affiliation{
+	\institution{University of Trieste}
+	\city{Trieste}
+	\country{Italy}
+}
+\email{marco.derito@studenti.units.it}
+\setlength{\headheight}{15.5pt}
+\begin{CCSXML}
+	<ccs2012>
+	<concept>
+	<concept_id>10002950.10003648.10003688.10003693</concept_id>
+	<concept_desc>Computing methodologies~Optimization algorithms</concept_desc>
+	<concept_significance>500</concept_significance>
+	</concept>
+	</ccs2012>
+\end{CCSXML}
+
+\ccsdesc[500]{Computing methodologies~Optimization algorithms}
+
+\begin{document}
+\sloppy
+	\begin{abstract}
+This paper represents my final project for an advanced optimization course, where I develop a comprehensive methodology for fantasy football team selection, formulated as an \emph{inverse optimization problem}. I apply three well-known metaheuristics: Particle Swarm Optimization (PSO), Differential Evolution (DE) and Evolution Strategies (ES) in a multi-manager auction setting, ensuring budget and positional constraints are respected.
+
+The study integrates theoretical foundations (including PSO, DE, ES, and inverse optimization principles), practical code implementations in Python (data loading, scoring, fitness function, forced assignments, multi-round auctions), and empirical evaluations. Through comparisons of budget usage, forced picks, and final team scores, I show that each algorithm delivers competitive results, albeit with differences in convergence speed and strategy diversity. Finally, I reflect on future enhancements such as hybrid approaches and reinforcement learning, emphasizing how these techniques can further improve automated draft systems in both fantasy and real-world resource-allocation contexts.
+	\end{abstract}
+	
+	\keywords{Fantasy Football, Inverse Optimization, Particle Swarm Optimization, Differential Evolution, Evolution Strategies, Machine Learning, Auction Mechanisms, Student Project}
+	
+\maketitle
+	
+	\section{Introduction}
+	Fantasy football is a popular game where participants (managers) build squads of real-life players under specific rules (budget limits, positional minimums, etc.). In this student project, I aim to formulate this selection task as an \emph{inverse optimization} scenario: rather than defining player values arbitrarily, I adapt a scoring function based on real historical stats (goals, assists, ratings, etc.).
+	
+	I employ three established methods from the field of \emph{evolutionary computation} and \emph{swarm intelligence}:
+	\begin{itemize}
+\item \textbf{Particle Swarm Optimization (PSO)}
+\item \textbf{Differential Evolution (DE)}
+\item \textbf{Evolution Strategies (ES)}
+	\end{itemize}
+	Each manager picks one algorithm to generate bids for available players in a multi-manager auction. After repeated rounds, we resolve conflicts and enforce forced assignments if rosters remain incomplete. This paper summarizes my approach, from conceptual underpinnings to Python implementation details, culminating in comparative charts of each algorithm’s performance.
+	
+	\subsection{Paper Structure}
+	\begin{itemize}
+\item \textbf{Section~\ref{sec:theory}} introduces the concept of inverse optimization for fantasy football and briefly reviews the fundamentals of PSO, DE, and ES.
+\item \textbf{Section~\ref{sec:implementation}} describes the project’s architecture (data loading, utility classes, the multi-manager auction routine) and provides code snippets for the scoring function, common fitness logic, and forced assignments.
+\item \textbf{Section~\ref{sec:results}} presents empirical analyses: budget usage, forced picks, and average team scores.
+\item \textbf{Section~\ref{sec:conclusion}} concludes with reflections and potential future extensions, such as hybrid evolutionary approaches or reinforcement learning.
+	\end{itemize}
+	
+	\section{Theoretical Background}
+	\label{sec:theory}
+	
+	\subsection{Inverse Optimization in Fantasy Football}
+	An \emph{inverse optimization} framework attempts to refine a cost or reward function so that historically observed solutions appear near-optimal. In fantasy football, the logic is as follows: if certain players consistently yield high performance, we want our scoring function to reflect that. While I do not explicitly solve a full parameter-fitting routine, I adopt the spirit of inverse optimization by letting real data guide the final scoring weights (\texttt{score\_player}).
+	
+	\subsection{Particle Swarm Optimization (PSO)}
+	PSO is inspired by natural swarms. We track positions $\mathbf{x}_i$ (bids) and velocities $\mathbf{v}_i$ for each particle $i$, updated as:
+	\[
+	\mathbf{v}_i(t+1)
+	= \omega\,\mathbf{v}_i(t)
+	+ c_1\,r_1\,(\mathbf{p}_i - \mathbf{x}_i(t))
+	+ c_2\,r_2\,(\mathbf{g} - \mathbf{x}_i(t)),
+	\]
+	\[
+	\mathbf{x}_i(t+1) = \mathbf{x}_i(t) + \mathbf{v}_i(t+1),
+	\]
+	where $\mathbf{p}_i$ is the best solution found by particle $i$, and $\mathbf{g}$ is the global best. PSO often rapidly explores a vast solution space but can exhibit variability if not properly tuned.
+	
+	\subsection{Differential Evolution (DE)}
+	DE uses vector differences to generate mutant solutions. For each agent (bid vector) $\mathbf{x}_i$, it randomly picks three distinct agents $\mathbf{x}_a,\mathbf{x}_b,\mathbf{x}_c$ and forms:
+	\[
+	\mathbf{y} = \mathbf{x}_a + F(\mathbf{x}_b - \mathbf{x}_c).
+	\]
+	Then it crosses over $\mathbf{y}$ with the target $\mathbf{x}_i$. If the resulting trial $\mathbf{z}$ has better fitness, it replaces $\mathbf{x}_i$. DE is known for robust fine-tuning in continuous spaces.
+	
+	\subsection{Evolution Strategies (ES)}
+	ES employ Gaussian mutations plus a survivor selection scheme $(\mu+\lambda)$ or $(\mu,\lambda)$. By mutating each parent to create offspring, then retaining the top solutions, ES preserve high diversity. In the fantasy scenario, random mutation of bids can sometimes yield unexpected but valuable team compositions, especially if guided by a well-structured penalty for budget or positional violations.
+	
+	\section{Implementation and Architecture}
+	\label{sec:implementation}
+	
+	\subsection{Overall Project Structure}
+	My Python project is split into modules:
+	\begin{itemize}
+\item \texttt{data\_loader.py} - reading and cleaning the CSV with player stats
+\item \texttt{utils.py} - classes \texttt{Player}, \texttt{Manager}, scoring function
+\item \texttt{optimization.py} - all the metaheuristics (PSO, DE, ES) plus the multi-manager auction logic
+\item \texttt{main.py} - orchestrates user inputs, runs the auction, generates final summary
+\item \texttt{report\_generator.py} - builds a PDF with charts (budget usage, forced picks, etc.)
+	\end{itemize}
+	
+	\subsection{Scoring Function and Common Fitness Logic}
+	\label{sec:score-fitness}
+	One of the most critical elements is the player scoring function, which turns historical stats (goals, assists, etc.) into a single numeric value. Compute the player's score based on various performance metrics.
+	
+Scoring breakdown:
+		\begin{itemize}
+\item \texttt Goals Scored: +0.5 per goal
+\item \texttt Assists: +0.2 per assist
+\item \texttt Yellow Cards: -0.05 per card
+\item \texttt Red Cards: -0.1 per card
+\item \texttt Fantasy Rating: +0.2 times the rating
+\item \texttt Penalties Scored: +0.2 per penalty
+\end{itemize}
+	
+Parameters:
+		\begin{itemize}
+\item \texttt player: The Player object for which to calculate the score.
+\end{itemize}
+	
+Returns:
+		\begin{itemize}
+\item \texttt A numerical value representing the player's overall score.
+\end{itemize}
+	
+\begin{lstlisting}[language=Python, caption=Example scoring function in utils.py]
+def score_player(player):
+
+# Retrieve player statistics using getattr to provide default values if not set
+goals = getattr(player, 'goals_scored', 0)
+assists = getattr(player, 'assists', 0)
+yellow_cards = getattr(player, 'yellow_cards', 0)
+red_cards = getattr(player, 'red_cards', 0)
+	rating = getattr(player, 'fantasy_rating', 6.0)
+	penalties = getattr(player, 'penalties_scored', 0)
+	
+	# Calculate the score based on the weighted metrics
+	score = ((0.5 * goals) + (0.2 * assists) - (0.05 * yellow_cards) - (0.1 * red_cards) + (0.2 * rating) +
+	(0.2 * penalties))
+return score
+	\end{lstlisting}
+	
+	Each algorithm then needs a \textbf{fitness function} to evaluate how good a bid vector is. If an algorithm is a minimizer (like \texttt{pyswarm.pso} or \texttt{differential\_evolution}), I return negative total score (plus large penalties for invalid solutions). The snippet below shows a common approach (\texttt{common\_fitness\_logic}):
+	
+\begin{lstlisting}[language=Python, caption=Common fitness logic for PSO/DE/ES]
+def common_fitness_logic(manager, bids: List[float], roles: List[str], scores: List[float], min_thr: int) -> float:
+
+	global evaluation_count, surrogate_model
+	evaluation_count += 1
+
+	int_bids = [int(round(b)) for b in bids]
+	for i, bid_value in enumerate(int_bids):
+		if 0 < bid_value < min_thr:
+			int_bids[i] = min_thr
+
+	# Convert budget to float for numerical comparisons
+	budget = to_float(manager.budget)
+	total_spent = sum(int_bids)
+	if total_spent > budget:
+		return HIGH_PENALTY
+	
+	for bid_value in int_bids:
+		if bid_value > budget * SINGLE_PLAYER_CAP_RATIO:
+			return HIGH_PENALTY
+	
+	leftover_budget = budget - total_spent
+	max_total = int(to_float(manager.max_total))
+	players_needed_local = max_total - len(manager.team)
+	if leftover_budget < players_needed_local:
+		return HIGH_PENALTY
+	
+	leftover_penalty = ((leftover_budget - players_needed_local) ** BUDGET_LEFTOVER_EXP) * LEFTOVER_MULTIPLIER
+	chosen_count = sum(1 for v in int_bids if v >= min_thr)
+	penalty = abs(chosen_count - players_needed_local) * PLAYER_COUNT_PENALTY
+	
+	role_count = {}
+	for i, bid_value in enumerate(int_bids):
+		if bid_value >= min_thr:
+			r = roles[i]
+			role_count[r] = role_count.get(r, 0) + 1
+	
+	for r, (min_r, max_r) in manager.role_constraints.items():
+		current_have = sum(1 for p in manager.team if p.role == r)
+		add_count = role_count.get(r, 0)
+		if current_have + add_count < min_r or current_have + add_count > max_r:
+			return HIGH_PENALTY
+	
+	penalty += leftover_penalty
+	
+	total_score = 0.0
+	for i, bid_value in enumerate(int_bids):
+		if bid_value >= min_thr:
+			w = role_weight(manager, roles[i])
+			total_score += w * scores[i]
+	
+	computed_fitness = penalty - total_score
+	
+	if USE_SURROGATE and surrogate_model is not None:
+		surrogate_model.update(bids, computed_fitness)
+		if evaluation_count % 20 == 0:
+			surrogate_model.train()
+		if evaluation_count >= SURROGATE_THRESHOLD:
+			surrogate_val = surrogate_model.evaluate(bids)
+			return 0.5 * computed_fitness + 0.5 * surrogate_val
+	
+	return computed_fitness
+\end{lstlisting}
+	
+	\subsection{Manager Strategies: PSO, DE, ES}
+	In my code, each \texttt{Manager} calls a function \texttt{decide\_bids} that internally picks the appropriate metaheuristic. Here is a sketch of the PSO approach, referencing \texttt{pyswarm}:
+	
+\begin{lstlisting}[language=Python, caption=manager strategy pso]
+from pyswarm import pso
+import numpy as np
+def manager_strategy_pso(manager, players_not_assigned):
+# Convert budget and max_total to single numbers.
+	budget = to_float(manager.budget)
+	max_total = int(to_float(manager.max_total))
+	if budget <= 0 or (max_total - len(manager.team)) <= 0:
+		return []
+	mb_possible = max_bid_possible(manager)
+	max_bid_per_player = to_float(min(max_bid_for_player(manager), mb_possible))
+	if max_bid_per_player < 1:
+		return []
+	n = len(players_not_assigned)
+	if n == 0:
+		return []
+# Create lower bound (lb) and upper bound (ub) as 1D arrays of floats.
+	lb = np.array([0.0 for _ in range(n)], dtype=np.float64)
+	ub = np.array([max_bid_per_player for _ in range(n)], dtype=np.float64)
+	pids = [pl.pid for pl in players_not_assigned]
+	roles = [pl.role for pl in players_not_assigned]
+	scores = [score_player(pl) for pl in players_not_assigned]
+	min_thr = min_bid_threshold(manager)
+	def fitness_func(bids_vector: List[float]) -> float:
+	return common_fitness_logic(manager, bids_vector, roles, scores, min_thr)
+	best_bids, _ = pso(
+		fitness_func, lb, ub,
+		swarmsize=40,
+		maxiter=80,
+		omega=0.7,
+		phip=1.8,
+		phig=1.8
+		)
+	final_bids = [int(round(b)) for b in best_bids]
+	for i, bid_value in enumerate(final_bids):
+		if 0 < bid_value < min_thr:
+			final_bids[i] = min_thr
+	results = []
+	for i, bid_value in enumerate(final_bids):
+		if 0 < bid_value <= budget:
+			results.append((pids[i], bid_value))
+	return results
+\end{lstlisting} 
+	
+	You can similarly define \texttt{manager\_strategy\_de}
+	(using \texttt{scipy.optimize.differential\_evolution}) and \texttt{manager\_strategy\_es} (using \texttt{deap}) by following a similar pattern and calling \texttt{common\_fitness\_logic} internally.
+	
+	\subsection{Multi-manager Auction and Forced Assignments}
+	Once each manager decides their bids in a given round, we collect them and assign players to the highest bidder or use a small function \texttt{resolve\_competition} to handle tie-breaks. Below is a simplified version of my multi-round auction orchestrator:
+	
+	\begin{lstlisting}[language=Python, caption=Multi-manager auction framework]
+
+	def multi_manager_auction(players, managers, max_turns=30):
+	not_assigned = {p.pid: p for p in players}
+	turn = 0
+	
+	while turn < max_turns and not_assigned:
+		turn += 1
+		all_bids = []
+	
+	# Each manager proposes bids
+	for mgr in managers:
+		unass_list = list(not_assigned.values())
+	bids = mgr.decide_bids(unass_list)
+	for (pid, amt) in bids:
+		if pid in not_assigned and mgr.can_buy(not_assigned[pid], amt):
+		all_bids.append((mgr, pid, amt))
+	
+	if not all_bids:
+		break
+	
+	# Group bids by player
+	bids_by_player = {}
+	for (mgr, pid, amt) in all_bids:
+		bids_by_player.setdefault(pid, []).append((mgr, amt))
+	
+	# Resolve conflicts and assign
+	for pid, manager_offers in bids_by_player.items():
+		if pid not in not_assigned:
+			continue
+	
+	if len(manager_offers) == 1:
+		best_manager, best_amt = manager_offers[0]
+	else:
+		best_manager, best_amt = resolve_competition(manager_offers)
+	
+	# Assign if feasible
+	if best_manager.can_buy(not_assigned[pid], best_amt):
+		player_obj = not_assigned[pid]
+		player_obj.assigned_to = best_manager.name
+		player_obj.final_price = best_amt
+		best_manager.update_roster(player_obj, best_amt)
+		del not_assigned[pid]
+	
+	# Post-process forced assignments
+	forced_assignments(managers, list(not_assigned.values()))
+	return managers, list(not_assigned.values())
+\end{lstlisting}
+
+	
+	Finally, the \texttt{forced\_assignments} step ensures each manager meets the \emph{minimum role constraints} by forcibly adding leftover players (often at base cost 1). This is a fallback mechanism for any manager who runs out of budget or gets outbid in key positions:
+	
+	\begin{lstlisting}[language=Python, caption=Simple forced assignment to fill leftover roles]
+def forced_assignments(managers, leftover_players):
+	for mgr in managers:
+		for role, (min_r, max_r) in mgr.role_constraints.items():
+			count_current = sum(p.role == role for p in mgr.team)
+		while count_current < min_r and leftover_players:
+		# pick any leftover of that role for 1 credit
+		candidate = None
+		for lp in leftover_players:
+			if lp.role == role:
+				candidate = lp
+				break
+		if not candidate:
+			break  # no more players of that role
+		if mgr.can_buy(candidate, 1):
+			candidate.assigned_to = mgr.name
+			candidate.final_price = 1
+			mgr.update_roster(candidate, 1)
+			leftover_players.remove(candidate)
+			count_current += 1
+	\end{lstlisting}
+	
+\section{Example: Initial Inputs and Scoring Calculation}
+
+In this section, we present an overview of the initial data and results used in our optimization process. We include several graphical and tabular analyses to illustrate the diversity of input data and the effectiveness of our algorithm in handling budget constraints and role requirements. The following figures and tables were generated during simulation runs, and their analysis supports the conclusion that our approach is both effective and robust.
+
+\subsection{Graphical Analyses}
+
+\subsubsection{Manager Distribution}
+Figure~\ref{fig:manager_distribution} shows the distribution of managers by strategy (PSO, DE, and ES). This graph is essential because it confirms that our experiment has a balanced input—each strategy is well-represented. A balanced manager distribution promotes diverse exploration in the search space, which is crucial for the robustness of the algorithm.
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.6\linewidth]{plot/manager_distribution.png}
+	\caption{Distribution of managers by strategy.}
+	\label{fig:manager_distribution}
+\end{figure}
+
+\subsubsection{Player Score Distribution}
+Figure~\ref{fig:player_scores} displays the distribution of player scores based on historical performance metrics. Notice that most players score in the lower-to-mid range, with only a few high-scoring outliers. This distribution forces managers to carefully allocate their budget. The effectiveness of our algorithm is demonstrated by its ability to select the optimal balance between expensive top performers and numerous affordable players.
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.8\linewidth]{plot/player_score_distribution.png}
+	\caption{Distribution of player scores based on historical performance.}
+	\label{fig:player_scores}
+\end{figure}
+
+\subsubsection{Budget Usage}
+Figure~\ref{fig:budget_usage} illustrates the budget utilization across managers. The graph shows that most managers spend nearly all of their available budget, which is an indication that the algorithm efficiently utilizes resources. Effective budget usage is critical in ensuring that no valuable credits remain unspent, thus maximizing the potential overall team score.
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.8\linewidth]{plot/budget_usage.png}
+	\caption{Budget Usage by Managers.}
+	\label{fig:budget_usage}
+\end{figure}
+
+\subsubsection{Forced Assignments}
+Figure~\ref{fig:forced_assignments} depicts the number of forced assignments per manager. Forced assignments occur when a manager fails to naturally satisfy the minimum role requirements, prompting the algorithm to assign additional players at a base cost. A low number of forced assignments indicates that the optimization process is generally successful at forming complete teams without needing extra interventions, thus proving the robustness of the method.
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.8\linewidth]{plot/forced_assignments.png}
+	\caption{Number of Forced Assignments per Manager.}
+	\label{fig:forced_assignments}
+\end{figure}
+
+\subsubsection{Average Team Score by Strategy}
+Finally, Figure~\ref{fig:team_score} shows the average team score achieved by managers using each strategy. The graph demonstrates that while DE typically achieves a higher total score, PSO and ES also perform competitively. The relatively small differences among strategies suggest that the algorithm is robust, as it can achieve good performance regardless of the chosen method.
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.8\linewidth]{plot/average_team_score_strategy.png}
+	\caption{Average Team Score by Strategy (PSO, DE, ES).}
+	\label{fig:team_score}
+\end{figure}
+
+\subsection{Tabular Analyses}
+
+\subsubsection{Manager Recap Table}
+Table~\ref{tab:recap_manager} provides a detailed recap of each manager's performance. It includes the chosen strategy, the number of forced assignments, the total budget spent, leftover credits, and the final objective score (team score). A low number of forced assignments along with near-zero leftover budget demonstrates that the algorithm effectively satisfies all constraints.
+
+\begin{table}[H]
+	\centering
+	\caption{Recap Table: Manager Stats}
+	\label{tab:recap_manager}
+	\begin{tabular}{lrrrrr}
+		\toprule
+		\textbf{Manager} & \textbf{Strat} & \textbf{Forced} & \textbf{Spent} & \textbf{Leftover} & \textbf{Objective} \\
+		\midrule
+		Manager\_1  & PSO & 6 & 494.0 & 0.0 & 52.91 \\
+		Manager\_2  & DE  & 9 & 492.0 & 0.0 & 51.48 \\
+		Manager\_3  & PSO & 6 & 494.0 & 0.0 & 44.46 \\
+		Manager\_4  & DE  & 7 & 493.0 & 0.0 & 53.64 \\
+		Manager\_5  & ES  & 4 & 496.0 & 0.0 & 49.18 \\
+		Manager\_6  & ES  & 5 & 495.0 & 0.0 & 46.02 \\
+		Manager\_7  & PSO & 5 & 496.0 & 0.0 & 47.00 \\
+		Manager\_8  & DE  & 6 & 494.0 & 0.0 & 55.32 \\
+		Manager\_9  & ES  & 2 & 498.0 & 0.0 & 44.23 \\
+		Manager\_10 & DE  & 6 & 494.0 & 0.0 & 46.59 \\
+		Manager\_11 & ES  & 5 & 495.0 & 0.0 & 39.99 \\
+		Manager\_12 & PSO & 7 & 494.0 & 0.0 & 53.23 \\
+		\bottomrule
+	\end{tabular}
+\end{table}
+
+\subsubsection{Performance by Strategy Table}
+Table~\ref{tab:performance_by_strategy} aggregates the performance of each strategy, reporting the number of managers using each method along with the average total score and average team score. This table confirms that although DE tends to achieve a slightly higher total score, the differences among the strategies are minimal—further evidence of the algorithm's robustness.
+
+\begin{table}[H]
+	\centering
+	\caption{Performance by Strategy}
+	\label{tab:performance_by_strategy}
+	\begin{tabular}{lrrrr}
+		\toprule
+		\textbf{Strategy} & \textbf{Managers} & \textbf{Avg Total Score} & \textbf{Avg Team Score} \\
+		\midrule
+		PSO & 4 & 49.40 & 2.95 \\
+		DE  & 4 & 51.76 & 2.92 \\
+		ES  & 4 & 44.85 & 2.65 \\
+		\bottomrule
+	\end{tabular}
+\end{table}
+
+\subsubsection{Player Score Summary Table}
+Table~\ref{tab:player_summary} summarizes the overall range of player scores calculated by our scoring function. The best, worst, and average scores reflect the challenging nature of the selection process, emphasizing that only a few elite players achieve high scores. This forces managers to balance high-cost, high-score players with more affordable options, demonstrating the effectiveness of our multi-objective optimization.
+
+\begin{table}[H]
+	\centering
+	\caption{Player Score Summary}
+	\label{tab:player_summary}
+	\begin{tabular}{lccc}
+		\toprule
+		& \textbf{Best} & \textbf{Worst} & \textbf{Average} \\
+		\midrule
+		Player Scores & 12.90 & 0.68 & 2.80 \\
+		\bottomrule
+	\end{tabular}
+\end{table}
+
+\subsection{Overall Discussion}
+The integration of these analyses demonstrates that our algorithm is effective and robust:
+\begin{itemize}
+	\item The balanced manager distribution (Figure~\ref{fig:manager_distribution}) ensures diverse search behavior.
+	\item The player score distribution (Figure~\ref{fig:player_scores}) highlights the need for careful budget allocation.
+	\item Budget usage (Figure~\ref{fig:budget_usage}) and forced assignments (Figure~\ref{fig:forced_assignments}) indicate that managers nearly fully utilize their budgets while rarely needing forced interventions.
+	\item The high average team scores (Figure~\ref{fig:team_score} and Table~\ref{tab:performance_by_strategy}) confirm that our optimization process consistently produces competitive teams.
+	\item The player score summary (Table~\ref{tab:player_summary}) emphasizes that only a few players reach elite performance levels, reinforcing the need for strategic selection.
+\end{itemize}
+
+Collectively, these results support the conclusion that our multi-manager auction framework effectively balances budget, role constraints, and team performance, validating the effectiveness of our inverse optimization approach in fantasy football.
+
+
+\section{Conclusion and Future Directions}
+\label{sec:conclusion}
+This student project combined \textbf{evolutionary computation} (PSO, DE, ES) and \textbf{inverse optimization} concepts to tackle a multi-manager fantasy football auction. Each strategy effectively balanced budget constraints and role requirements, consistently finding strong teams.
+
+\textbf{Key Observations:}
+\begin{itemize}
+	\item \textbf{PSO} discovered decent lineups very fast but sometimes left leftover budget.
+	\item \textbf{DE} refined solutions precisely, often maximizing the entire budget.
+	\item \textbf{ES} preserved diversity, occasionally stumbling onto interesting rosters that others ignored.
+\end{itemize}
+
+\textbf{Future Enhancements:}
+\begin{itemize}
+	\item \textbf{User-Friendly Interface and Web Platform}: Develop a graphical user interface (GUI) or a web-based platform to make the system more accessible and intuitive for managers. This interface could guide users through data input and configuration, and offer visual feedback on optimization progress.
+	\item \textbf{Automated Lineup Suggestions}: Extend the system to not only propose a full roster but also suggest an optimal starting lineup based on current form and projected performance, thus assisting managers in making final tactical decisions.
+\end{itemize}
+
+Even as a student implementation, the results show that \emph{metaheuristics + domain-specific constraints} can produce realistic, high-quality fantasy rosters, and the interplay of different strategies leads to a fair, competitive multi-manager environment. I hope this framework serves as a foundation for more advanced or hybrid systems in the future.
+
+	
+\end{document}
