@@ -72,7 +72,7 @@ A detailed PDF report is generated after the optimization, providing insights su
 Follow these steps to set up the project:
 
 ```bash
-git clone https://github.com/yourusername/fantasy-football-optimization.git
+git clone https://github.com/marcoderito/fantasy_football.git
 cd fantasy-football-optimization
 
 # Create a virtual environment (recommended)
