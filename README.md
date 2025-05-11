@@ -4,7 +4,7 @@ This project applies evolutionary and swarm intelligence algorithms (PSO, DE, ES
 
 ## Overview
 
-This project uses evolutionary and swarm intelligence algorithms (Particle Swarm Optimization, Differential Evolution, Evolution Strategies) to optimize fantasy football team selection as an inverse optimization problem. Given historical player performance data, the goal is to determine the optimal composition of a fantasy football team that maximizes performance metrics, while respecting constraints such as available budget and player roles.
+This project uses evolutionary and swarm intelligence algorithms (Particle Swarm Optimization, Differential Evolution, Evolution Strategies) to optimize fantasy football team selection as an inverse optimization problem. Given historical player performance data, the goal is to determine the optimal composition of a fantasy football team.
 
 In particular, the project provides three alternative optimization methods that can be selected individually by each team manager during the setup phase. Managers individually select from three sophisticated optimization algorithms:
 
@@ -58,7 +58,7 @@ A detailed PDF report is generated after the optimization, providing insights su
     - Final fantasy football teams and relevant metrics for each manager.
 
 - **report_generator.py:**  
-  Generates a comprehensive and professional PDF report that includes:
+  Generates a PDF report that includes:
   - Technical descriptions of PSO, DE, and ES algorithms and their roles in the optimization process.
   - Detailed empirical analysis such as average scores, distribution of managers’ chosen strategies, and player performance statistics visualized through multiple charts (bar charts, pie charts, and histograms).
   - Tabular summaries showing key performance indicators for each optimization strategy.
@@ -88,12 +88,14 @@ pip install -r requirements.txt
 
 The dataset (Fantacalcio_stat.csv) should include columns similar to the following example:
 
-| Name              | Role | Team  | Matches_Played | Goals_Scored | Assists | Fantasy_Rating | Yellow_Cards | Red_Cards |
-|-------------------|------|-------|----------------|--------------|---------|----------------|--------------|-----------|
-| Lautaro Martinez  | A    | Inter | 25             | 15           | 5       | 7.8            | 3            | 0         |
-| Theo Hernandez    | D    | Milan | 24             | 4            | 6       | 7.2            | 4            | 0         |
-| Nicolò Barella    | C    | Inter | 27             | 6            | 8       | 7.5            | 2            | 0         |
-| ...               | ...  | ...   | ...            | ...          | ...     | ...            | ...          | ...       |
+| Id | R | Rm | Name | Team | Pv | Mv | Fm | Gf | Gs | Rp | Rc | R+ | R- | Ass | Amm | Esp | Au |
+|----|---|----|------|------|----|----|----|----|----|----|----|----|----|-----|-----|-----|----|
+| 2170 | P | Por | Milinkovic-Savic V. | Torino     | 25 | 6.44 | 5.72 | 0 | 29 | 4 | 0 | 0 | 0 | 0 | 2 | 0 | 0 |
+|  572 | P | Por | Meret               | Napoli     | 23 | 6.35 | 5.61 | 0 | 20 | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| 2521 | P | Por | De Gea             | Fiorentina | 23 | 6.41 | 5.59 | 0 | 25 | 2 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+|  188 | P | Por | Leali              | Genoa      | 19 | 6.21 | 5.24 | 0 | 19 | 1 | 0 | 0 | 0 | 0 | 1 | 0 | 1 |
+| 2428 | P | Por | Sommer             | Inter      | 25 | 6.12 | 5.28 | 0 | 24 | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+
 
 ## Usage
 
@@ -126,13 +128,7 @@ Open the generated `report.pdf` file to review:
 ## Customization
 
 - Modify optimization parameters (swarm size, iterations, mutation rates) in `optimization.py`.
-- Adapt the PDF report content and graphical visualizations in `report_generator.py`.
-
-## Acknowledgements
-
-This project was inspired by the Fuzzy Self-Tuning PSO paper and the course materials provided in the course zip file. Special thanks to the course instructors for their guidance and support.
 
 ## License
 
-This project is for educational purposes. Feel free to modify and use it for your own projects or coursework.
-
+This project is for educational purposes. 

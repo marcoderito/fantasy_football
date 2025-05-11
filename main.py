@@ -1,4 +1,18 @@
-# main.py
+"""
+Main Auction Driver
+
+Launches a full multi‑manager fantasy‑football auction by orchestrating:
+  1. Loading player dataset and manager configurations
+  2. Selecting an optimisation strategy for each manager (PSO/DE/ES)
+  3. Running `multi_manager_auction` turn‑by‑turn
+  4. Printing a concise CLI summary once the auction ends
+  5. Triggering the PDF report generator for post‑analysis
+
+Entry point for command‑line execution.
+
+Author: Marco De Rito
+"""
+
 # Import necessary modules and functions
 from data_loader import load_data
 from utils import Player, Manager, score_player
@@ -13,20 +27,16 @@ def main():
         # If the data failed to load, we simply return and exit
         return
 
-    # Sort the dataframe by "Goals_Scored" in de            scending order
+    # Sort the dataframe by "Goals_Scored" in descending order
     df.sort_values(by="Goals_Scored", ascending=False, inplace=True)
 
-    # Choose how many players to consider from the dataset
-    num_players = 400
-    df = df.head(num_players)
-
-    # ----------------- General Settings -----------------
+    # General Settings
     print("\n--- General Settings ---")
     num_managers = int(input("Enter the number of managers: "))
     budget_input = float(input("Enter the budget for each manager: "))
     max_total_input = int(input("Enter the maximum number of players per manager: "))
 
-    # ----------------- Role Constraints -----------------
+    # Role Constraints
     print("\n--- Role Constraints ---")
     # Note: 'P' = Goalkeepers, 'D' = Defenders, 'C' = Midfielders, 'A' = Forwards
     min_gk = int(input("Enter the minimum number of Goalkeepers (P): "))
@@ -75,8 +85,11 @@ def main():
             assists=row.get("Assists", 0),
             yellow_cards=row.get("Yellow_Cards", 0),
             red_cards=row.get("Red_Cards", 0),
-            fantasy_rating=row.get("Fantasy_Rating", 6.0),
-            penalties_scored=row.get("Penalties_Scored", 0)
+            rating=row.get("Rating", 6.0),
+            penalties_scored=row.get("Penalties_Scored", 0),
+            matches_played = row.get("Matches_Played", 0),
+            goals_conceded = row.get("Goals_Conceded", 0),
+            penalties_saved = row.get("Penalties_Saved", 0)
         )
         players.append(new_player)
 
@@ -96,6 +109,5 @@ def main():
     print("\nThe PDF report 'report.pdf' has been generated.")
 
 
-# Blank line here for PEP 8 compliance (E305)
 if __name__ == "__main__":
     main()

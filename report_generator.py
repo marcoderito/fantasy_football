@@ -10,17 +10,9 @@ Generates a comprehensive PDF report for a multi-manager fantasy football auctio
   6. Final team listings and best manager highlight
   7. Conclusions and disclaimers
 
-Assumptions:
- - Each Manager object provides:
-    manager.name (str)
-    manager.strategy (str)
-    manager.team (List[Player]) with player.final_price (float)
-    manager.budget (float) left after auction
-    manager.forced_assignments (List[Player]) if forced picks occurred
-
 Author: Marco De Rito
 """
-
+# Import necessary modules and functions
 import os
 import statistics
 import textwrap
@@ -171,7 +163,6 @@ def generate_pdf_report(managers, filename="report.pdf"):
     plt.close()
 
     plt.figure(figsize=(8, 4))
-    bottom_vals = [0]*len(managers_names)
     plt.bar(managers_names, budget_spent_values, color='orchid', edgecolor='black', label='Spent')
     plt.bar(managers_names, leftover_values, bottom=budget_spent_values,
             color='lightgray', edgecolor='black', label='Leftover')
@@ -204,78 +195,17 @@ def generate_pdf_report(managers, filename="report.pdf"):
     c.setFont(main_font, 10)
     c.drawCentredString(width/2, y, "Author: Marco De Rito")
     y -= 15
-    c.drawCentredString(width/2, y, "University of Example - Advanced Optimization Course")
+    c.drawCentredString(width/2, y, "University of Trieste - Optimization of Artificial Intelligence Course")
     y -= 80
     c.setFont(main_font, 12)
     c.drawCentredString(width/2, y, "Proceed to next page for index and details.")
     c.showPage()
 
-    # Index page
-    y = height - margin
-    c.setFont(main_font, 18)
-    c.drawString(margin, y, "Index")
-    y -= 30
-    c.setFont(main_font, 11)
-    index_points = [
-        "1. Technical Overview & Scoring",
-        "2. Empirical Performance Analysis",
-        "3. Forced Assignments & Budget Usage",
-        "4. Final Teams",
-        "5. Conclusions & Disclaimer",
-    ]
-    for pt in index_points:
-        c.drawString(margin, y, f"- {pt}")
-        y -= 15
-    y -= 20
-    c.setFont(main_font, 10)
-    index_text = (
-        "This index provides a quick guide through the main sections of the report. "
-        "Page numbers are not explicitly shown, but each section title is clear."
-    )
-    wrapped_idx = textwrap.wrap(index_text, width=80)
-    txt_idx = c.beginText(margin, y)
-    txt_idx.setLeading(14)
-    for line in wrapped_idx:
-        txt_idx.textLine(line)
-    c.drawText(txt_idx)
-    c.showPage()
-
-    # 1. Technical Overview & Scoring
-    y = height - margin
-    c.setFont(main_font, 16)
-    c.drawString(margin, y, "1. Technical Overview & Scoring")
-    y -= 30
-    c.setFont(main_font, 10)
-
-    tech_paragraph = [
-        "This project combines PSO, DE, and ES to solve a multi-manager fantasy football optimization. "
-        "Each manager chooses one approach and aims to maximize the total performance score of selected "
-        "players under budget and positional constraints.",
-        "",
-        "Scoring Function (score_player):",
-        "Rewards goals, assists, and bonus metrics, while penalizing negative events such as cards. "
-        "A final fantasy rating may also contribute. The team's objective is the sum of these scores.",
-        "",
-        "Auction & Forced Assignments:",
-        "Managers bid in parallel. If conflicts arise, a resolution decides who wins. If a manager fails "
-        "to fulfill minimum role requirements or runs low on budget, forced assignments ensure a valid "
-        "roster, but may not be optimal."
-    ]
-    txt_tech = c.beginText(margin, y)
-    txt_tech.setLeading(14)
-    for paragraph in tech_paragraph:
-        wrapped_tech = textwrap.wrap(paragraph, width=95)
-        for line in wrapped_tech:
-            txt_tech.textLine(line)
-        txt_tech.textLine("")
-    c.drawText(txt_tech)
-    y = txt_tech.getY() - 20
-
-    # 2. Empirical Performance
+    # 1. Empirical Performance
     if y < 100:
         y = new_page()
     c.setFont(main_font, 16)
-    c.drawString(margin, y, "2. Empirical Performance Analysis")
+    c.drawString(margin, y, "1. Empirical Performance Analysis")
     y -= 30
     c.setFont(main_font, 10)
     c.drawString(margin, y, "Performance by Strategy:")
@@ -334,7 +264,7 @@ def generate_pdf_report(managers, filename="report.pdf"):
     if y < 250:
         y = new_page()
     c.setFont(main_font, 16)
-    c.drawString(margin, y, "3. Forced Assignments & Budget Usage")
+    c.drawString(margin, y, "2. Forced Assignments & Budget Usage")
     y -= 30
 
     c.setFont(main_font, 10)
@@ -381,7 +311,7 @@ def generate_pdf_report(managers, filename="report.pdf"):
     # 4. Final Teams
     y = new_page()
     c.setFont(main_font, 16)
-    c.drawString(margin, y, "4. Final Teams")
+    c.drawString(margin, y, "3. Final Teams")
     y -= 30
 
     c.setFont(main_font, 11)
@@ -416,35 +346,6 @@ def generate_pdf_report(managers, filename="report.pdf"):
         if y < 70:
             y = new_page()
 
-    # 5. Conclusions & Disclaimer
-    y = new_page()
-    c.setFont(main_font, 16)
-    c.drawString(margin, y, "5. Conclusions & Disclaimer")
-    y -= 30
-    c.setFont(main_font, 10)
-    conclusion_lines = [
-        "Conclusions:",
-        " - Each manager's strategy aims to maximize total score under strict budget and role constraints.",
-        " - Forced assignments ensure minimal positional requirements are met when normal bidding fails.",
-        " - Final stats show how each manager allocated their credits, how many forced players they took,",
-        "   and their ultimate objective score.",
-        "",
-        "Disclaimer:",
-        "This report is provided for educational demonstration of swarm and evolutionary algorithms ",
-        "in a multi-manager fantasy football auction scenario. For real-world usage, further validation ",
-        "and domain expertise may be required.",
-        "",
-        "End of Report."
-    ]
-    txt_concl = c.beginText(margin, y)
-    txt_concl.setLeading(14)
-    for para in conclusion_lines:
-        wrap_conc = textwrap.wrap(para, width=95)
-        for wline in wrap_conc:
-            txt_concl.textLine(wline)
-        txt_concl.textLine("")
-    c.drawText(txt_concl)
-
     c.save()
 
     # Cleanup temporary chart files
@@ -456,40 +357,40 @@ def generate_pdf_report(managers, filename="report.pdf"):
             os.remove(tmp_file)
 
 
-if __name__ == "__main__":
-    class DummyPlayer:
-        def __init__(self, name, role, final_price):
-            self.name = name
-            self.role = role
-            self.final_price = final_price
 
-    class DummyManager:
-        def __init__(self, name, strategy, team, budget=0, forced_assignments=None):
-            self.name = name
-            self.strategy = strategy
-            self.team = team
-            self.budget = budget
-            self.forced_assignments = forced_assignments or []
 
-    # Basic test usage
-    mgr1 = DummyManager(
-        "Manager_Alpha", "pso",
-        [
-            DummyPlayer("Player A", "A", 15.0),
-            DummyPlayer("Player B", "D", 10.0),
-        ],
-        budget=5.0,
-        forced_assignments=[DummyPlayer("Player_C", "C", 1.0)]
-    )
 
-    mgr2 = DummyManager(
-        "Manager_Beta", "de",
-        [
-            DummyPlayer("Player X", "C", 12.0),
-            DummyPlayer("Player Y", "A", 17.0),
-        ],
-        budget=3.0
-    )
 
-    generate_pdf_report([mgr1, mgr2], filename="improved_report.pdf")
-    print("PDF generated: improved_report.pdf")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

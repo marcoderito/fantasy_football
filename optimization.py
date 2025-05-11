@@ -1,8 +1,26 @@
+"""
+Auction Optimisation Engine
+
+Provides the entire AI core used by the auction system:
+  • Shared fitness function with budget, role, and surrogate‑model logic
+  • Three meta‑heuristics to build bid vectors
+        1. Particle Swarm Optimisation (pyswarm)
+        2. Differential Evolution (SciPy)
+        3. (μ+λ) Evolution Strategy (DEAP)
+  • Conflict resolution helper (mini‑auction with dynamic re‑bids)
+  • Full multi‑manager auction loop with forced assignments
+
+All functions are stateless; Managers and Players carry their own data.
+
+Author: Marco De Rito
+"""
+
 # Import the required libraries and modules
 import numpy as np
 import random
 from typing import List, Tuple
-
+#import an external scoring function
+from utils import score_player
 # DEAP is used for evolutionary algorithms
 from deap import base, creator, tools, algorithms
 # pyswarm for Particle Swarm Optimization (PSO)
@@ -10,35 +28,14 @@ from pyswarm import pso
 # differential_evolution from SciPy for another optimization strategy
 from scipy.optimize import differential_evolution
 
-
-def to_float(value):
-    """
-    Convert input 'value' to a float.
-
-    - If it's a NumPy array with a single element, get that element.
-    - If it's a tuple or list, take the first element.
-    - Otherwise, just convert directly.
-
-    This is useful because sometimes values come in weird formats.
-    """
-    # If it's a NumPy array, use .item() to get the single element
-    if isinstance(value, np.ndarray):
-        return float(value.item())
-    # If it's a tuple or list, use the first element
-    if isinstance(value, (tuple, list)):
-        return float(value[0])
-    # Otherwise, just cast to float
-    return float(value)
-
-
-##############################################
 # EXPLICITLY DEFINED DEAP CLASSES
-##############################################
 
 # Define a custom fitness class for maximization problems
+
+
 class FitnessMax(base.Fitness):
-    """Fitness class for maximization problems."""
-    weights = (1.0,)
+    """Fitness class for minimization problems."""
+    weights = (-1.0,)
 
 
 # Define an Individual class that is just a list with a fitness attribute.
@@ -54,9 +51,7 @@ class Individual(list):
 creator.FitnessMax = FitnessMax
 creator.Individual = Individual
 
-##############################################
 # GLOBAL PARAMETERS
-##############################################
 
 # These constants are used in the fitness calculations and bidding logic.
 BUDGET_LEFTOVER_EXP = 2.0
@@ -72,9 +67,7 @@ SURROGATE_THRESHOLD = 50
 evaluation_count = 0
 
 
-##############################################
 # SURROGATE MODEL
-##############################################
 
 class SurrogateModel:
     """
@@ -108,9 +101,7 @@ class SurrogateModel:
 surrogate_model = SurrogateModel() if USE_SURROGATE else None
 
 
-##############################################
 # HELPER FUNCTIONS
-##############################################
 
 def min_bid_threshold(_manager) -> int:
     """
@@ -124,8 +115,8 @@ def max_bid_for_player(manager) -> float:
     Compute the maximum bid for a single player based on the remaining budget and needed players.
     This uses a base cap calculation and then doubles it.
     """
-    budget = to_float(manager.budget)
-    max_total = int(to_float(manager.max_total))
+    budget = manager.budget
+    max_total = int(manager.max_total)
     players_needed = max_total - len(manager.team)
     if players_needed <= 0:
         return budget
@@ -139,8 +130,8 @@ def max_bid_possible(manager) -> float:
     """
     Returns the highest possible bid ensuring that at least 1 credit is kept for each remaining player.
     """
-    budget = to_float(manager.budget)
-    max_total = int(to_float(manager.max_total))
+    budget = manager.budget
+    max_total = int(manager.max_total)
     players_needed = max_total - len(manager.team)
     return budget - (players_needed - 1)
 
@@ -156,31 +147,7 @@ def role_weight(manager, role_name: str) -> float:
     return 2.0 if current_count < min_r else 1.0
 
 
-##############################################
-# PLAYER SCORING FUNCTION
-##############################################
-
-# Try to import an external scoring function if available.
-try:
-    from utils import score_player
-except ImportError:
-    # If not available, use this simple scoring function.
-    def score_player(_player) -> float:
-        """
-        Calculate a score for a player.
-        For goalkeepers (role 'P'), it factors in Goals Conceded and Penalties Saved.
-        For others, it just returns a constant score.
-        """
-        if _player.role == 'P':
-            return (10.0 - float(getattr(_player, 'Goals_Conceded', 0))
-                    + 3.0 * float(getattr(_player, 'Penalties_Saved', 0)))
-        else:
-            return 5.0
-
-
-##############################################
 # COMMON FITNESS CALCULATION FUNCTION
-##############################################
 
 def common_fitness_logic(manager,
                          bids: List[float],
@@ -206,7 +173,7 @@ def common_fitness_logic(manager,
             int_bids[i] = min_thr
 
     # Check if total spent is over budget
-    budget = to_float(manager.budget)
+    budget = manager.budget
     total_spent = sum(int_bids)
     if total_spent > budget:
         return HIGH_PENALTY
@@ -218,7 +185,7 @@ def common_fitness_logic(manager,
 
     # Calculate the budget left after the bids
     leftover_budget = budget - total_spent
-    max_total = int(to_float(manager.max_total))
+    max_total = int(manager.max_total)
     players_needed_local = max_total - len(manager.team)
     # If leftover is too little for the remaining players, penalize hard
     if leftover_budget < players_needed_local:
@@ -267,9 +234,7 @@ def common_fitness_logic(manager,
     return computed_fitness
 
 
-##############################################
 # PSO STRATEGY (Particle Swarm Optimization)
-##############################################
 
 def manager_strategy_pso(manager, players_not_assigned):
     """
@@ -277,14 +242,14 @@ def manager_strategy_pso(manager, players_not_assigned):
     It creates lower and upper bounds for the bid values and optimizes the fitness function.
     """
     # Convert budget and total players to numbers
-    budget = to_float(manager.budget)
-    max_total = int(to_float(manager.max_total))
+    budget = manager.budget
+    max_total = int(manager.max_total)
     if budget <= 0 or (max_total - len(manager.team)) <= 0:
         return []
 
     # Get maximum bid possible per player
     mb_possible = max_bid_possible(manager)
-    max_bid_per_player = to_float(min(max_bid_for_player(manager), mb_possible))
+    max_bid_per_player = min(max_bid_for_player(manager), mb_possible)
     if max_bid_per_player < 1:
         return []
 
@@ -330,18 +295,16 @@ def manager_strategy_pso(manager, players_not_assigned):
     return results
 
 
-##############################################
 # DE STRATEGY (Differential Evolution)
-##############################################
 
 def manager_strategy_de(manager, players_not_assigned):
     """
     Uses Differential Evolution to optimize bids.
     Very similar to PSO but with a different optimization technique.
     """
-    if to_float(manager.budget) <= 0:
+    if manager.budget <= 0:
         return []
-    max_total = int(to_float(manager.max_total))
+    max_total = int(manager.max_total)
     if (max_total - len(manager.team)) <= 0:
         return []
 
@@ -364,7 +327,7 @@ def manager_strategy_de(manager, players_not_assigned):
     # Run differential evolution
     result = differential_evolution(
         fitness_wrapper,
-        [(0.0, float(max_bid_per_player))] * n,
+        bounds=[(0.0, float(max_bid_per_player))] * n,
         strategy='best1bin',
         maxiter=50,
         popsize=15,
@@ -381,23 +344,21 @@ def manager_strategy_de(manager, players_not_assigned):
     pids = [pl.pid for pl in players_not_assigned]
     results = []
     for i, bid_value in enumerate(final_bids):
-        if 0 < bid_value <= to_float(manager.budget):
+        if 0 < bid_value <= manager.budget:
             results.append((pids[i], bid_value))
     return results
 
 
-##############################################
 # ES STRATEGY (Evolution Strategies using DEAP)
-##############################################
 
 def manager_strategy_es(manager, players_not_assigned):
     """
     Uses an Evolution Strategy (ES) to decide on the bids.
     This approach evolves a population of bid vectors over several generations.
     """
-    if to_float(manager.budget) <= 0:
+    if manager.budget <= 0:
         return []
-    max_total = int(to_float(manager.max_total))
+    max_total = int(manager.max_total)
     if (max_total - len(manager.team)) <= 0:
         return []
 
@@ -430,9 +391,6 @@ def manager_strategy_es(manager, players_not_assigned):
     # Fitness evaluation for an individual bid vector
     def eval_es(individual: List[float]) -> Tuple[float]:
         fitness_val = common_fitness_logic(manager, individual, roles, scores, min_thr)
-        # Penalize heavily if the fitness is at the HIGH_PENALTY level
-        if fitness_val == HIGH_PENALTY:
-            return -HIGH_PENALTY,
         return fitness_val,
 
     # Register genetic operators in the toolbox
@@ -460,14 +418,12 @@ def manager_strategy_es(manager, players_not_assigned):
 
     results = []
     for i, bid_value in enumerate(final_bids):
-        if 0 < bid_value <= to_float(manager.budget):
+        if 0 < bid_value <= manager.budget:
             results.append((pids[i], bid_value))
     return results
 
 
-##############################################
 # COMPETITION RESOLUTION
-##############################################
 
 def resolve_competition(manager_offers: List[Tuple], min_increment=1, max_rebids=5, trigger_gap=3) -> Tuple:
     """
@@ -515,9 +471,7 @@ def resolve_competition(manager_offers: List[Tuple], min_increment=1, max_rebids
     return top_man, top_bid
 
 
-##############################################
 # MULTI-MANAGER AUCTION FUNCTION
-##############################################
 
 def multi_manager_auction(players, managers, max_turns=30):
     """

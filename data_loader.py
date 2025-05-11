@@ -1,3 +1,17 @@
+"""
+Data Loader & Pre‑processing
+
+Responsibilities:
+  1. Read raw CSV / JSON player datasets
+  2. Normalise column names, convert numeric fields
+  3. Build Player objects with expected attributes
+  4. Provide helper to instantiate default Manager objects
+
+All I/O isolated here so the optimisation code remains storage‑agnostic.
+
+Author: Marco De Rito
+"""
+
 # Import necessary modules and functions
 import pandas as pd
 
