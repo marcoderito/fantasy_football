@@ -83,47 +83,80 @@
 		
 		\begin{columns}[T,onlytextwidth]
 			\column{0.5\textwidth}
-			\textbf{Notice (CLI)}
+			\textbf{Notice legend}
 			\vspace{0.3em}
 			\begin{tabular}{@{}ll@{}}
 				$B$ & current budget of \emph{one} manager\\
 				$b_i$ & bid placed by that manager for player $i$\\
-				$N_{\max}$ & maximum squad size (user input)\\
+				$N_{\max}$ &  squad size\\
 				$N_{\text{rem}}$ & empty slots still to be filled\\
 				$m_r, M_r$ & min / max players for role $r$\\
-				$r$ & role index: P (GK), D, M, F\\
+				$r$ & role index: P, D, C, A\\
 			\end{tabular}
-			
-			\vspace{1em}
-			\textbf{Context}
-			\begin{itemize}
-				\item Fantasy football cast as an \emph{inverse-optimisation} task
-				\item 12 managers, each selects \textbf{PSO}, \textbf{DE} or \textbf{ES}
-				\item Conflicts resolved by deterministic rebids
-				\item Fitness = real score – penalties
-			\end{itemize}
-			
-			\column{0.48\textwidth}
-			\textbf{Inputs (CLI)}
-			\begin{itemize}
-				\item Initial budget per manager $B$ (\SI{500}{cr} default)
-				\item Max squad size $N_{\max}$
-				\item Role quotas $(m_r, M_r)$ for $r \in \{P, D, M, F\}$
-				\item Data set: 600+ Serie A players (23/24 stats)
-			\end{itemize}
-			
-			\textbf{Hard constraints}
+				\textbf{Constraints}
 			\begin{itemize}
 				\item Bid domain $b_i \in \{0\} \cup [1, \infty)$
 				\item Turn budget $\sum_i b_i \le B$
 				\item Per-player cap $b_i \le 0.4B$
 				\item Reserve credits $B - \sum b_i \ge N_{\text{rem}}$
-				\item Squad size $|\text{team}| \le N_{\max}$
+				\item Squad size $|\text{team}| = N_{\max}$
 				\item Role quotas enforced every turn
 			\end{itemize}
 			
+			\vspace{1em}
+
+			\column{0.48\textwidth}
+			\textbf{Inputs}
+			\begin{itemize}
+				\item Initial budget per manager $B$  (CLI)
+				\item Number of managers (CLI)
+				\item Algorithm for each manager $r \in \{PSO, DE, ES\}$ (CLI)
+				\item  squad size $N_{\max}$ (CLI)
+				\item Role quotas $(m_r, M_r)$ for $r \in \{P, D, C, A\}$ (CLI)
+				\item Data set: 600+ Serie A players (23/24 stats)
+			\end{itemize}
+			
+			
 		\end{columns}
 	\end{frame}
+\section{Software Architecture}
+\begin{frame}{Project Files}
+
+	\begin{block}{}
+		Logical separation between data, logic, optimization and output.
+	\end{block}
+		\vspace{0.3em}
+		\textbf{Main Modules}
+		\begin{itemize}
+			\item \texttt{main.py} – CLI input \& full pipeline control
+			\item \texttt{data\_loader.py} – loads \& cleans player data
+			\item \texttt{utils.py} – defines \texttt{Player}, \texttt{Manager}, \texttt{score\_player}
+			\item \texttt{optimization.py} – implements PSO, DE, ES + auction logic
+			\item \texttt{report\_generator.py} – generates PDF report
+		\end{itemize}
+		\vspace{0.3em}
+		\textbf{Tuning Scripts}
+		\begin{itemize}
+			\item \texttt{hyperparameter\_tuning.py}
+			\item \texttt{inverse\_param\_tuning.py}
+		\end{itemize}
+		\vspace{0.3em}
+		\textbf{Supporting Files}
+		\begin{itemize}
+			\item \texttt{Fantacalcio\_stat.csv}, \texttt{requirements.txt}, \texttt{.git/}, \texttt{venv/}
+		\end{itemize}
+		
+
+\end{frame}
+\begin{frame}{Architecture}
+
+
+		\includegraphics[width=0.90\textwidth]{plot/architecture_diagram.png}
+
+\end{frame}
+
+	
+	
 	
 	\section{Representation}
 	\begin{frame}{Genotype vs Phenotype}
@@ -336,7 +369,7 @@ b2 += dynamic_inc
 		\begin{itemize}
 			\item Same 25-player pool, fixed seed, 60 auction turns
 			\item Test manager + 1 random rival (guarantees bidding pressure)
-			\item Fitness = sum of final squad scores
+
 		\end{itemize}
 		
 		\medskip
@@ -344,7 +377,7 @@ b2 += dynamic_inc
 \begin{itemize}
 	\item PSO = 2 inertia weights \(\times\) 2 swarm sizes = \textbf{4} runs
 	\item DE = 3 population sizes \(\times\) 2 \(F\) ranges \(\times\) 2 \(CR\) = \textbf{12} runs
-	\item ES = 4 \((\mu+\lambda)\) pairs \(\times\) 2 generation counts = \textbf{8} runs
+	\item ES = 4 \((\mu,\lambda)\) pairs \(\times\) 2 generation counts = \textbf{8} runs
 \end{itemize}
 
 	
@@ -356,8 +389,7 @@ b2 += dynamic_inc
 \begin{itemize}
 	\item Values are the \emph{standard defaults} most cited in the literature  
 	(Clerc and Kennedy for PSO, Storn and Price for DE, \(\lambda\!>\!\!\mu\) rule for ES)
-	\item Wide enough to capture meaningful variance yet small enough to keep
-	the grid computationally feasible.
+
 	
 \end{itemize}
 	\end{columns}
@@ -397,7 +429,7 @@ b2 += dynamic_inc
 	DE  &
 	pop $\{10,15,20\}$, $F\in\{(0.5,1.0),(0.7,1.2)\}$, $CR\in\{0.7,0.9\}$ \\[2pt]
 	ES  &
-	$(\mu+\lambda)\in\{(15,30),(15,40),(20,30),(20,40)\}$, $ngen\in\{50,80\}$ \\[2pt]
+	$(\mu+\lambda)\in\{(15+30),(15+40),(20+30),(20+40)\}$, $ngen\in\{50,80\}$ \\[2pt]
 	\bottomrule
 \end{tabular}
 
@@ -481,7 +513,7 @@ b2 += dynamic_inc
 			\footnotesize
 			\begin{tabular}{@{}lcccc@{}}
 				\toprule
-				Alg. & Pop./Swarm / $(\mu + \lambda)$ & $F/(\omega)$ & $CR/c_{1,2}$ & $\mathcal L$\\
+				Alg. & Pop./Swarm / $(\mu,\lambda)$ & $F/(\omega)$ & $CR/c_{1,2}$ & $\mathcal L$\\
 				\midrule
 				DE  & 10          & 0.7–1.2 & 0.7  & 0.278\\
 				ES  & (20,30)     & –       & –    & 1.86\\
