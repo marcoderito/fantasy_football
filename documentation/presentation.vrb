@@ -1,0 +1,25 @@
+\frametitle{Auction Conflict Heuristic}
+\begin{enumerate}\footnotesize
+			\item Gather all bids $(\text{mgr}, \text{player}, b)$
+			\item Group by player
+			\item Single bidder $\Rightarrow$ immediate assignment
+			\item Otherwise:
+			\begin{itemize}
+				\item Sort bids $b_1 \ge b_2 \ge \dots$
+				\item If $b_1 - b_2 > g_{\text{trigger}}$ $\Rightarrow$ highest wins
+				\item Else launch up to 5 dynamic rebids\\
+				\smallskip
+				\textit{\footnotesize (rebids = recompute bids with small noise or fallback threshold)}
+				
+			\end{itemize}
+		\end{enumerate}
+		\begin{lstlisting}[language=Python, caption={Semplified Dynamic rebid heuristic}, style=mystyle]
+# Inputs: b1 = top bid, b2 = second bid, B = second manager's remaining budget, n = number of players still needed
+ratio = B / n
+gap = b1 - b2
+#Compute dynamic rebid increment
+dynamic_inc = max(1, int(round(gap / 2 * ratio))) + 1
+# Apply rebid
+b2 += dynamic_inc
+		\end{lstlisting}
+		

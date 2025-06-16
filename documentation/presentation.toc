@@ -1,0 +1,9 @@
+\babel@toc {english}{}\relax 
+\beamer@sectionintoc {1}{Problem Statement}{3}{0}{1}
+\beamer@sectionintoc {2}{Representation}{4}{0}{2}
+\beamer@sectionintoc {3}{Algorithmic Formulas}{5}{0}{3}
+\beamer@sectionintoc {4}{Fitness}{6}{0}{4}
+\beamer@sectionintoc {5}{Conflict Resolution}{7}{0}{5}
+\beamer@sectionintoc {6}{Example}{8}{0}{6}
+\beamer@sectionintoc {7}{Hyper-parameter Tuning}{11}{0}{7}
+\beamer@sectionintoc {8}{Inverse multi–tuning}{13}{0}{8}

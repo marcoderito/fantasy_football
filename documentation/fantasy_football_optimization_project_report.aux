@@ -7,9 +7,9 @@
 \@writefile{toc}{\contentsline {subsection}{\numberline {1.1}Report Structure}{1}{subsection.1.1}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {2}Theoretical Background}{1}{section.2}\protected@file@percent }
 \newlabel{sec:theory}{{2}{1}{Theoretical Background}{section.2}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {2.1}Inverse Optimization in Fantasy Football}{1}{subsection.2.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.1}Data Driven in Fantasy Football}{1}{subsection.2.1}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {2.2}Particle Swarm Optimization (PSO)}{1}{subsection.2.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {2.3}Differential Evolution (DE)}{1}{subsection.2.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.3}Differential Evolution (DE)}{2}{subsection.2.3}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {2.4}Evolution Strategies (ES)}{2}{subsection.2.4}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {3}Implementation and Architecture}{2}{section.3}\protected@file@percent }
 \newlabel{sec:implementation}{{3}{2}{Implementation and Architecture}{section.3}{}}
@@ -24,12 +24,12 @@
 \newlabel{tab:algorithm_parameters}{{1}{3}{Key Parameters for PSO, DE, and ES}{table.caption.5}{}}
 \@writefile{lol}{\contentsline {lstlisting}{\numberline {3}{\ignorespaces PSO parameter setup with pyswarm}}{3}{lstlisting.3}\protected@file@percent }
 \@writefile{lol}{\contentsline {lstlisting}{\numberline {4}{\ignorespaces DE parameter setup with SciPy}}{3}{lstlisting.4}\protected@file@percent }
-\@writefile{lol}{\contentsline {lstlisting}{\numberline {5}{\ignorespaces ES setup with DEAP using ($\mu $$+$$\lambda $)}}{3}{lstlisting.5}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {5}{\ignorespaces ES setup with DEAP using ($\mu $$+$$\lambda $)}}{4}{lstlisting.5}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {3.4}Multi-manager Auction and Forced Assignments}{4}{subsection.3.4}\protected@file@percent }
 \@writefile{lol}{\contentsline {lstlisting}{\numberline {6}{\ignorespaces Multi-manager auction framework}}{4}{lstlisting.6}\protected@file@percent }
 \@writefile{lol}{\contentsline {lstlisting}{\numberline {7}{\ignorespaces Simple forced assignment to fill leftover roles}}{4}{lstlisting.7}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {4}Example: Initial Inputs and Scoring Calculation}{4}{section.4}\protected@file@percent }
-\newlabel{sec:results}{{4}{4}{Example: Initial Inputs and Scoring Calculation}{section.4}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {4}Example: Initial Inputs and Scoring Calculation}{5}{section.4}\protected@file@percent }
+\newlabel{sec:results}{{4}{5}{Example: Initial Inputs and Scoring Calculation}{section.4}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {4.1}Graphical Analyses}{5}{subsection.4.1}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {4.1.1}Manager Distribution}{5}{subsubsection.4.1.1}\protected@file@percent }
 \@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Distribution of managers by strategy.}}{5}{figure.caption.6}\protected@file@percent }
@@ -54,12 +54,33 @@
 \@writefile{lot}{\contentsline {table}{\numberline {4}{\ignorespaces Player Score Summary}}{6}{table.caption.12}\protected@file@percent }
 \newlabel{tab:player_summary}{{4}{6}{Player Score Summary}{table.caption.12}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {4.3}Overall Discussion}{6}{subsection.4.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {5}Conclusion and Future Directions}{6}{section.5}\protected@file@percent }
-\newlabel{sec:conclusion}{{5}{6}{Conclusion and Future Directions}{section.5}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.4}Hyper-parameter Tuning}{6}{subsection.4.4}\protected@file@percent }
+\newlabel{subsec:tuning}{{4.4}{6}{Hyper-parameter Tuning}{subsection.4.4}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {5}{\ignorespaces Grid used for hyper-parameter search}}{6}{table.caption.13}\protected@file@percent }
+\newlabel{tab:tuning-grid}{{5}{6}{Grid used for hyper-parameter search}{table.caption.13}{}}
+\@writefile{toc}{\contentsline {paragraph}{Best configuration per algorithm.}{6}{section*.14}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces Sum of score for each team obtained by each hyper-parameter configuration (higher is better).}}{7}{figure.caption.15}\protected@file@percent }
+\newlabel{fig:tuning-bars}{{5}{7}{Sum of score for each team obtained by each hyper-parameter configuration (higher is better)}{figure.caption.15}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {5}Inverse hyper-parameter tuning}{7}{section.5}\protected@file@percent }
+\newlabel{sec:inverse}{{5}{7}{Inverse hyper-parameter tuning}{section.5}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.1}Problem statement}{7}{subsection.5.1}\protected@file@percent }
+\newlabel{eq:loss}{{{1}}{7}{Problem statement}{AMS.16}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.2}Outer PSO search}{7}{subsection.5.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.3}Convergence}{7}{subsection.5.3}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces Evolution of the $\ell _1$ loss defined in \eqref  {eq:loss}.}}{7}{figure.caption.17}\protected@file@percent }
+\newlabel{fig:loss-curve}{{6}{7}{Evolution of the $\ell _1$ loss defined in \eqref {eq:loss}}{figure.caption.17}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {7}{\ignorespaces KPI alignment before optimisation, at the optimum, and the desired target.}}{7}{figure.caption.18}\protected@file@percent }
+\newlabel{fig:inv-compare}{{7}{7}{KPI alignment before optimisation, at the optimum, and the desired target}{figure.caption.18}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.4}Best configurations}{7}{subsection.5.4}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {6}{\ignorespaces Top-5 parameter sets (sorted by loss).}}{7}{table.caption.19}\protected@file@percent }
+\newlabel{tab:top5}{{6}{7}{Top-5 parameter sets (sorted by loss)}{table.caption.19}{}}
+\@writefile{toc}{\contentsline {paragraph}{Discussion.}{7}{section*.20}\protected@file@percent }
 \newlabel{tocindent-1}{0pt}
 \newlabel{tocindent0}{0pt}
 \newlabel{tocindent1}{4.185pt}
 \newlabel{tocindent2}{10.34999pt}
 \newlabel{tocindent3}{18.198pt}
-\newlabel{TotPages}{{7}{7}{}{page.7}{}}
-\gdef \@abspage@last{7}
+\@writefile{toc}{\contentsline {section}{\numberline {6}Conclusion and Future Directions}{8}{section.6}\protected@file@percent }
+\newlabel{sec:conclusion}{{6}{8}{Conclusion and Future Directions}{section.6}{}}
+\newlabel{TotPages}{{8}{8}{}{page.8}{}}
+\gdef \@abspage@last{8}
