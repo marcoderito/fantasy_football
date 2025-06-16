@@ -4,7 +4,7 @@ This project applies evolutionary and swarm intelligence algorithms (PSO, DE, ES
 
 ## Overview
 
-This project uses evolutionary and swarm intelligence algorithms (Particle Swarm Optimization, Differential Evolution, Evolution Strategies) to optimize fantasy football team selection as an inverse optimization problem. Given historical player performance data, the goal is to determine the optimal composition of a fantasy football team.
+This project uses evolutionary and swarm intelligence algorithms (Particle Swarm Optimization, Differential Evolution, Evolution Strategies) to optimize fantasy football team selection. Given historical player performance data, the goal is to determine the optimal composition of a fantasy football team.
 
 In particular, the project provides three alternative optimization methods that can be selected individually by each team manager during the setup phase. Managers individually select from three sophisticated optimization algorithms:
 
@@ -64,8 +64,21 @@ A detailed PDF report is generated after the optimization, providing insights su
   - Tabular summaries showing key performance indicators for each optimization strategy.
   - Clearly structured listings of the final teams selected by each manager, detailing player roles, bids, and calculated performance scores.
 
+  - **hyperparameter_tuning.py:**  
+  Performs hyper-parameter optimization for PSO, DE, and ES using a one-on-one simulated auction (1 test manager vs. 1 random rival).  
+  The goal is to empirically determine parameter configurations that maximize team quality (score), minimize forced assignments, and optimize budget usage.  
+  The script runs multiple configurations and records performance metrics to compare strategies under varying settings. Results are printed and can be logged for future analysis.
+
+- **inverse_param_tuning.py:**  
+  Implements inverse optimization: given a fixed target performance profile (e.g., score = 100, forced = 4, leftover = 0),  
+  the script searches for the algorithm and hyper-parameters that reproduce this target when running an internal auction.  
+  It uses Particle Swarm Optimization (PSO) as an outer optimizer to minimize the $\ell_1$ loss between actual and desired KPIs.  
+  This enables retrospective tuning and validation of which parameter settings would likely lead to a predefined auction outcome.
+
+
 - **requirements.txt:**  
   Lists all Python dependencies required to run the project successfully, ensuring easy setup and reproducibility of the environment.
+
 
 ## Installation
 
@@ -116,6 +129,22 @@ The script will prompt you for inputs such as:
 - Role constraints (number of players per position)
 
 After completing the optimization, the script will print team details to the console and generate a PDF report named `report.pdf`.
+### Optional: Run Standalone Tuning Scripts
+
+The two tuning modules — `hyperparameter_tuning.py` and `inverse_param_tuning.py` — can be executed independently of the main optimization pipeline.
+
+They are intended for research and evaluation purposes:
+
+- **`hyperparameter_tuning.py`** evaluates the impact of different meta-heuristic configurations on auction performance.  
+- **`inverse_param_tuning.py`** finds which parameter combinations best reproduce a predefined auction outcome.
+
+To run them from the terminal:
+
+```bash
+python hyperparameter_tuning.py
+```bash
+python inverse_param_tuning.py
+
 
 ### 3. Review the Generated Report
 
