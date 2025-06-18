@@ -83,7 +83,7 @@
 	\maketitle
 	
 	\section{Introduction}
-	Fantasy football is a popular game where participants (managers) build squads of real-life players under specific rules (budget limits, positional minimums, etc.). In this project, I aim to formulate this selection task as an \emph{data drive} scenario: rather than defining player values arbitrarily, I adapt a scoring function based on real historical stats (goals, assists, ratings, etc.).
+	Fantasy football is a popular game where participants (managers) build squads of real-life players under specific rules (budget limits, positional minimums, etc.). In this project, I aim to formulate this selection task as an \emph{data driven} scenario: rather than defining player values arbitrarily, I adapt a scoring function based on real historical stats (goals, assists, ratings, etc.).
 	
 	I employ three established methods from the field of \emph{evolutionary computation} and \emph{swarm intelligence}:
 	\begin{itemize}
@@ -91,7 +91,7 @@
 		\item \textbf{Differential Evolution (DE)}
 		\item \textbf{Evolution Strategies (ES)}
 	\end{itemize}
-	Each manager picks one algorithm to generate bids for available players in a multi-manager auction. After repeated rounds, I resolve conflicts and enforce forced assignments if rosters remain incomplete. This report summarizes my approach, from conceptual underpinnings to Python implementation details, culminating in comparative charts of each algorithm’s performance.
+	Each manager picks one algorithm to generate bids for available players in a multi-manager auction. After repeated rounds, the program resolves conflicts and enforces forced assignments if rosters remain incomplete. This report summarizes my approach, from conceptual underpinnings to Python implementation details, culminating in comparative charts of each algorithm’s performance.
 	
 	\subsection{Report Structure}
 	\begin{itemize}
@@ -105,8 +105,13 @@
 	\section{Theoretical Background}
 	\label{sec:theory}
 	
-	\subsection{Data Driven in Fantasy Football}
-	An \emph{data driven} framework attempts to refine a cost or reward function so that historically observed solutions appear near-optimal. In fantasy football, the logic is as follows: if certain players consistently yield high performance, I want my scoring function to reflect that. While I do not explicitly solve a full parameter-fitting routine, I adopt the spirit of data driven optimization by letting real data guide the final scoring weights (\texttt{score\_player}).
+\subsection{Data-driven approach in Fantasy Football}
+My method is data-driven in the most pragmatic sense: historical
+numbers—goals, assists, average ratings—serve as the empirical base
+for building a forward-looking value index. I leverage those data
+to assign, \emph{ex-ante}, weights proportional to the importance that
+ fantasy-league rules attribute to each match event.
+
 	
 	\subsection{Particle Swarm Optimization (PSO)}
 	PSO is inspired by natural swarms. I track positions $\mathbf{x}_i$ (bids) and velocities $\mathbf{v}_i$ for each particle $i$, updated as:
@@ -530,7 +535,7 @@
 	\subsection{Tabular Analyses}
 	
 	\subsubsection{Manager Recap Table}
-	Table~\ref{tab:recap_manager} provides a detailed recap of each manager's performance. It includes the chosen strategy, the number of forced assignments, the total budget spent, and the final objective score (team score). A low number of forced assignments along with near 500 spent budget demonstrates that the algorithm effectively satisfies all constraints.
+	Table~\ref{tab:recap_manager} provides a detailed recap of each manager's performance. It includes the chosen strategy, the number of forced assignments, the total budget spent, and the final objective score (team score). A low number of forced assignments along with near 500 spent budget demonstrates that the algorithm allocate resources well.
 	
 	\begin{table}[H]
 		\centering

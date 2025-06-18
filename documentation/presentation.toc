@@ -2,7 +2,7 @@
 \beamer@sectionintoc {1}{Problem Statement}{3}{0}{1}
 \beamer@sectionintoc {2}{Software Architecture}{4}{0}{2}
 \beamer@sectionintoc {3}{Representation}{6}{0}{3}
-\beamer@sectionintoc {4}{Algorithmic Formulas}{7}{0}{4}
+\beamer@sectionintoc {4}{Algorithmics}{7}{0}{4}
 \beamer@sectionintoc {5}{Fitness}{8}{0}{5}
 \beamer@sectionintoc {6}{Conflict Resolution}{9}{0}{6}
 \beamer@sectionintoc {7}{Example}{10}{0}{7}
