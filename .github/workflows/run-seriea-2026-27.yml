@@ -29,7 +29,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python run_seriea_2026_27.py | tee data_build_output.txt
+          python run_seriea_2026_27_v2.py | tee data_build_output.txt
           cp Fantacalcio_stat.csv Fantacalcio_stat_full_combined.csv
           python - <<'PY'
           import pandas as pd
