@@ -6,6 +6,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import requests
+from bs4 import BeautifulSoup
 
 
 def norm(x):
@@ -16,23 +17,17 @@ def norm(x):
     return re.sub(r'\s+', ' ', x).strip()
 
 
-def key_name(x):
+def base_name(x):
     p = norm(x).split()
     if len(p) > 1 and len(p[-1]) <= 2:
         p = p[:-1]
     return ' '.join(p)
 
 
-def get_text(url):
+def get(url):
     r = requests.get(url, timeout=45, headers={'User-Agent': 'Mozilla/5.0'})
     r.raise_for_status()
     return r.text
-
-
-def get_bytes(url):
-    r = requests.get(url, timeout=45, headers={'User-Agent': 'Mozilla/5.0'})
-    r.raise_for_status()
-    return r.content
 
 
 def flat(df):
@@ -118,31 +113,65 @@ def clean_stats(t):
     return out[out['Name'].str.lower().ne('nan') & out['Name'].str.strip().ne('')]
 
 
-def official_roles_xlsx(content):
-    book = pd.ExcelFile(io.BytesIO(content))
-    candidates = []
-    for sheet in book.sheet_names:
-        raw = pd.read_excel(book, sheet_name=sheet, header=None)
-        for header_row in range(min(12, len(raw))):
-            vals = [norm(v) for v in raw.iloc[header_row].tolist()]
-            if any(v in {'r', 'ruolo', 'role'} or 'ruolo' in v for v in vals) and any('nome' in v or 'calciatore' in v or 'giocatore' in v for v in vals):
-                df = pd.read_excel(book, sheet_name=sheet, header=header_row)
-                df = flat(df)
-                role = pick(df, ['r', 'ruolo', 'role'])
-                name = pick(df, ['nome', 'calciatore', 'giocatore', 'name'])
-                team = pick(df, ['squadra', 'sq', 'team'])
-                if role is not None and name is not None:
-                    out = pd.DataFrame({
-                        'NameRole': df[name].astype(str).str.strip(),
-                        'Role': df[role].astype(str).str.strip().str.upper(),
-                        'TeamRole': df[team].astype(str).str.strip() if team is not None else ''
-                    })
-                    out = out[out.Role.isin(['P','D','C','A'])]
-                    if len(out) >= 300:
-                        candidates.append(out)
-    if not candidates:
-        raise RuntimeError('Could not parse Classic roles from current 2026/27 XLSX')
-    return max(candidates, key=len).drop_duplicates()
+def gazzetta_roles(html):
+    soup = BeautifulSoup(html, 'html.parser')
+    rows = []
+    for tr in soup.find_all('tr'):
+        cells = [c.get_text(' ', strip=True) for c in tr.find_all(['td', 'th'])]
+        # Expected row shape: selector | team | player | P/D/C/A | quote
+        for i, v in enumerate(cells):
+            if v.strip().upper() in {'P','D','C','A'} and i >= 2:
+                role = v.strip().upper()
+                name = cells[i-1].strip()
+                team = cells[i-2].strip()
+                if name and team and not name.isdigit():
+                    rows.append((name, role, team))
+                break
+    out = pd.DataFrame(rows, columns=['NameG','Role','TeamG']).drop_duplicates()
+    if len(out) < 300:
+        raise RuntimeError(f'Gazzetta role list unexpectedly small: {len(out)}')
+    return out
+
+
+TEAM_MAP = {
+    'ata':'atalanta','bol':'bologna','cag':'cagliari','com':'como','fio':'fiorentina',
+    'fro':'frosinone','gen':'genoa','int':'inter','juv':'juventus','laz':'lazio',
+    'lec':'lecce','mil':'milan','mon':'monza','nap':'napoli','par':'parma',
+    'rom':'roma','sas':'sassuolo','tor':'torino','udi':'udinese','ven':'venezia'
+}
+
+
+def norm_team(x):
+    t = norm(x)
+    return TEAM_MAP.get(t, t)
+
+
+def attach_roles(cur, roles):
+    cur = cur.copy()
+    roles = roles.copy()
+    cur['name_full'] = cur.Name.map(norm)
+    cur['name_base'] = cur.Name.map(base_name)
+    cur['team_key'] = cur.Team.map(norm_team)
+    roles['name_full'] = roles.NameG.map(norm)
+    roles['name_base'] = roles.NameG.map(base_name)
+    roles['team_key'] = roles.TeamG.map(norm_team)
+
+    # 1) Exact normalized name match when unique.
+    full = roles.groupby('name_full')['Role'].agg(lambda x: x.iloc[0] if x.nunique() == 1 else '')
+    cur['R'] = cur.name_full.map(full).fillna('')
+
+    # 2) Base surname/name + team, which safely separates e.g. Berardi D. (Sassuolo)
+    #    from Berardi L. (Venezia).
+    by_team = roles.groupby(['name_base','team_key'])['Role'].agg(lambda x: x.iloc[0] if x.nunique() == 1 else '')
+    mask = ~cur.R.isin(['P','D','C','A'])
+    cur.loc[mask, 'R'] = [by_team.get((b,t), '') for b,t in zip(cur.loc[mask,'name_base'], cur.loc[mask,'team_key'])]
+
+    # 3) Base-name fallback only if that base name is globally unique in the current list.
+    grouped = roles.groupby('name_base').agg(n=('name_full','nunique'), nr=('Role','nunique'), role=('Role','first'))
+    unique = grouped[(grouped.n == 1) & (grouped.nr == 1)]['role']
+    mask = ~cur.R.isin(['P','D','C','A'])
+    cur.loc[mask, 'R'] = cur.loc[mask,'name_base'].map(unique).fillna('')
+    return cur.drop(columns=['name_full','name_base','team_key'])
 
 
 def score(r):
@@ -151,45 +180,49 @@ def score(r):
 
 
 def main():
-    cur = clean_stats(stats_table(get_text('https://www.fantacalcio.it/statistiche-serie-a/2026-27')))
-    prev = clean_stats(stats_table(get_text('https://www.fantacalcio.it/statistiche-serie-a/2025-26')))
-    roles = official_roles_xlsx(get_bytes('https://www.quellicheilfantacalcio.org/public/download?id=12'))
+    cur = clean_stats(stats_table(get('https://www.fantacalcio.it/statistiche-serie-a/2026-27')))
+    prev = clean_stats(stats_table(get('https://www.fantacalcio.it/statistiche-serie-a/2025-26')))
+    roles = gazzetta_roles(get('https://www.gazzetta.it/calcio/fantanews/lista-giocatori-fantacalcio-serie-a-2026-27/'))
 
     print('Current sample names:', cur.Name.head(8).tolist())
-    print('Role XLSX sample:', roles[['NameRole','Role']].head(8).values.tolist())
+    print('Gazzetta role sample:', roles[['TeamG','NameG','Role']].head(8).values.tolist())
 
-    cur['key'] = cur.Name.map(key_name)
-    prev['key'] = prev.Name.map(key_name)
-    roles['key'] = roles.NameRole.map(key_name)
-    cur = cur.sort_values('Pv', ascending=False).drop_duplicates('key')
-    prev = prev.sort_values('Pv', ascending=False).drop_duplicates('key')
+    cur = attach_roles(cur, roles)
+    cur['hist_key'] = cur.Name.map(norm)
+    prev['hist_key'] = prev.Name.map(norm)
+    cur = cur.sort_values('Pv', ascending=False).drop_duplicates(['hist_key','Team'])
+    prev = prev.sort_values('Pv', ascending=False).drop_duplicates('hist_key')
 
-    rg = roles.groupby('key')['Role'].agg(lambda x: x.iloc[0] if x.nunique() == 1 else '')
-    cur['R'] = cur['key'].map(rg).fillna('')
-
-    # Returning-player fallback to repository historical role map only when the current listone spelling does not match.
+    # Very conservative fallback to the repository's historical role map: only exact normalized names.
     if Path('Fantacalcio_stat.csv').exists():
         old = pd.read_csv('Fantacalcio_stat.csv')
-        old['key'] = old.Name.map(key_name)
-        om = old.groupby('key')['R'].agg(lambda x: x.iloc[0] if x.nunique() == 1 else '')
+        old['hist_key'] = old.Name.map(norm)
+        om = old.groupby('hist_key')['R'].agg(lambda x: x.iloc[0] if x.nunique() == 1 else '')
         mask = ~cur.R.isin(['P','D','C','A'])
-        cur.loc[mask, 'R'] = cur.loc[mask, 'key'].map(om).fillna('')
+        cur.loc[mask, 'R'] = cur.loc[mask,'hist_key'].map(om).fillna('')
 
     valid = cur.R.isin(['P','D','C','A']).sum()
     print('Current players with valid Classic roles:', int(valid), 'of', len(cur))
     if valid < 450:
-        bad = cur.loc[~cur.R.isin(['P','D','C','A']), 'Name'].head(30).tolist()
+        bad = cur.loc[~cur.R.isin(['P','D','C','A']), ['Name','Team']].head(30).values.tolist()
         raise RuntimeError(f'Role match insufficient; unmatched sample={bad}')
 
-    prev = prev.set_index('key')
+    # Hard sanity checks for well-known current players to catch accidental role corruption.
+    sanity = {'Berardi':'A','Svilar':'P','Dimarco':'D','Paz N.':'C','Malen':'A'}
+    for nm, role in sanity.items():
+        m = cur[cur.Name.map(base_name) == base_name(nm)]
+        if not m.empty and role not in set(m.R):
+            raise RuntimeError(f'Role sanity check failed for {nm}: {m[["Name","Team","R"]].values.tolist()}')
+
+    prev = prev.set_index('hist_key')
     rows = []
     matched_history = 0
     counts = ['Pv','Gf','Gs','Rp','Rc','R+','R-','Ass','Amm','Esp','Au']
     for _, r in cur.iterrows():
         z = r.copy()
-        if r['key'] in prev.index:
+        if r['hist_key'] in prev.index:
             matched_history += 1
-            p = prev.loc[r['key']]
+            p = prev.loc[r['hist_key']]
             a, b = float(r.Pv), float(p.Pv)
             d = a + b
             if d:
