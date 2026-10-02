@@ -6,6 +6,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import requests
+from bs4 import BeautifulSoup
 
 
 def _norm(s):
@@ -111,20 +112,35 @@ def clean_stats(df):
 
 
 def find_gazzetta_roles(html):
-    tables = pd.read_html(io.StringIO(html))
-    for t in tables:
+    # Gazzetta renders a normal HTML table, but pandas can miss the role text.
+    # Parse each row directly: [selector, team, player, P/D/C/A, quotation].
+    soup = BeautifulSoup(html, 'html.parser')
+    records = []
+    for tr in soup.find_all('tr'):
+        cells = [c.get_text(' ', strip=True) for c in tr.find_all(['td', 'th'])]
+        if not cells:
+            continue
+        role_idx = next((i for i, x in enumerate(cells) if x.strip().upper() in {'P', 'D', 'C', 'A'}), None)
+        if role_idx is None or role_idx < 2:
+            continue
+        role = cells[role_idx].strip().upper()
+        name = cells[role_idx - 1].strip()
+        team = cells[role_idx - 2].strip()
+        if name and team:
+            records.append((name, role, team))
+    out = pd.DataFrame(records, columns=['NameG', 'Role', 'TeamG']).drop_duplicates()
+    if not out.empty:
+        return out
+
+    # Fallback to pandas table parsing if the site's markup changes.
+    for t in pd.read_html(io.StringIO(html)):
         t = flatten_cols(t)
-        name_c = next((c for c in t.columns if 'giocatore' in _norm(c)), None)
-        role_c = next((c for c in t.columns if 'ruolo' in _norm(c)), None)
-        team_c = next((c for c in t.columns if _norm(c) in {'sqd', 'squadra'} or 'sqd' in _norm(c)), None)
-        if name_c and role_c:
-            out = pd.DataFrame({'NameG': t[name_c].astype(str).str.strip(),
-                                'Role': t[role_c].astype(str).str.strip().str.upper(),
-                                'TeamG': t[team_c].astype(str).str.strip() if team_c else ''})
-            out = out[out['Role'].isin(['P', 'D', 'C', 'A'])]
-            if not out.empty:
-                return out
-    return pd.DataFrame(columns=['NameG', 'Role', 'TeamG'])
+        for i, row in t.iterrows():
+            vals = [str(x).strip() for x in row.tolist()]
+            role_idx = next((j for j, x in enumerate(vals) if x.upper() in {'P', 'D', 'C', 'A'}), None)
+            if role_idx is not None and role_idx >= 2:
+                records.append((vals[role_idx - 1], vals[role_idx], vals[role_idx - 2]))
+    return pd.DataFrame(records, columns=['NameG', 'Role', 'TeamG']).drop_duplicates()
 
 
 def score_row(r):
@@ -144,20 +160,16 @@ def main():
     cur = cur.sort_values('Pv', ascending=False).drop_duplicates('key')
     prev = prev.sort_values('Pv', ascending=False).drop_duplicates('key')
 
-    # Fantacalcio's table normally carries the Classic role. Fill any missing roles from Gazzetta.
     cur.loc[~cur['R'].isin(['P', 'D', 'C', 'A']), 'R'] = ''
     if cur['R'].eq('').any():
-        try:
-            roles = find_gazzetta_roles(fetch_html(gazzetta_url))
-        except Exception:
-            roles = pd.DataFrame(columns=['NameG', 'Role', 'TeamG'])
+        roles = find_gazzetta_roles(fetch_html(gazzetta_url))
+        print('Gazzetta role rows parsed:', len(roles))
         if not roles.empty:
             roles['key'] = roles['NameG'].map(_surname_key)
             role_groups = roles.groupby('key')['Role'].agg(lambda x: x.iloc[0] if x.nunique() == 1 else '')
             mask = cur['R'].eq('')
             cur.loc[mask, 'R'] = cur.loc[mask, 'key'].map(role_groups).fillna('')
 
-    # Final fallback for returning players: repository historical role.
     repo_csv = Path('Fantacalcio_stat.csv')
     if repo_csv.exists() and cur['R'].eq('').any():
         old = pd.read_csv(repo_csv)
@@ -167,7 +179,7 @@ def main():
         cur.loc[mask, 'R'] = cur.loc[mask, 'key'].map(old_role).fillna('')
 
     valid_current_roles = int(cur['R'].isin(['P', 'D', 'C', 'A']).sum())
-    print('Current table columns parsed successfully; valid Classic roles:', valid_current_roles)
+    print('Current players with valid Classic roles:', valid_current_roles)
     if valid_current_roles < 100:
         raise RuntimeError('Too few current players have a valid Classic role; refusing to use stale data.')
 
