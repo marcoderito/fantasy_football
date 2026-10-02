@@ -1,0 +1,79 @@
+name: Serie A 2026-27 fantasy run
+
+on:
+  push:
+    branches: [run-serie-a-2026-27]
+  workflow_dispatch:
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: run-serie-a-2026-27
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install requests lxml html5lib beautifulsoup4
+
+      - name: Build combined 2026-27 + 2025-26 dataset
+        run: |
+          python run_seriea_2026_27.py | tee data_build_output.txt
+          cp Fantacalcio_stat.csv Fantacalcio_stat_full_combined.csv
+          python - <<'PY'
+          import pandas as pd
+          df = pd.read_csv('Fantacalcio_stat.csv')
+          caps = {'P': 12, 'D': 36, 'C': 36, 'A': 28}
+          parts = []
+          for role, cap in caps.items():
+              g = df[df.R == role].head(cap)
+              parts.append(g)
+          out = pd.concat(parts, ignore_index=True)
+          out.to_csv('Fantacalcio_stat.csv', index=False)
+          out.to_csv('Fantacalcio_stat_auction_pool.csv', index=False)
+          print('Auction pool:', len(out), out.R.value_counts().to_dict())
+          PY
+
+      - name: Run original optimization pipeline
+        env:
+          PYTHONHASHSEED: '42'
+        run: |
+          printf '3\n500\n25\n3\n3\n8\n8\n8\n8\n6\n6\npso\nde\nes\n' | python main.py | tee console_output.txt
+
+      - name: Save run metadata
+        if: always()
+        run: |
+          {
+            echo 'Run date: 2026-10-02'
+            echo 'Seasons: Serie A 2026/27 current + 2025/26 previous'
+            echo 'Current roster only.'
+            echo 'Counting stats: summed across seasons.'
+            echo 'MV/FM: appearance-weighted across seasons.'
+            echo 'Managers: 3; budget: 500; roster: 25; roles: 3P 8D 8C 6A.'
+            echo 'Strategies: Manager_1=PSO, Manager_2=DE, Manager_3=ES.'
+            echo 'Auction candidate pool: top 12 P, 36 D, 36 C, 28 A by repository score after blending.'
+          } > RUN_METADATA.txt
+
+      - name: Upload outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: seriea-2026-27-fantasy-output
+          path: |
+            report.pdf
+            console_output.txt
+            data_build_output.txt
+            RUN_METADATA.txt
+            Fantacalcio_stat_2026_27_combined.csv
+            Fantacalcio_stat_full_combined.csv
+            Fantacalcio_stat_auction_pool.csv
+          if-no-files-found: warn
