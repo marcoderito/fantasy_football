@@ -50,29 +50,20 @@ jobs:
       - name: Patch pyswarm return compatibility
         run: |
           python - <<'PY'
+          import re
           from pathlib import Path
           p = Path('optimization.py')
           s = p.read_text()
-          old = '''    best_bids, _ = pso(
-              fitness_func, lb, ub,
-              swarmsize=40,
-              maxiter=80,
-              omega=0.7,
-              phip=1.8,
-              phig=1.8
-          )'''
-          new = '''    _pso_result = pso(
-              fitness_func, lb, ub,
-              swarmsize=40,
-              maxiter=80,
-              omega=0.7,
-              phip=1.8,
-              phig=1.8
-          )
-          best_bids = _pso_result[0]'''
-          if old not in s:
-              raise RuntimeError('PSO call signature block not found')
-          p.write_text(s.replace(old, new, 1))
+          pattern = r'(?m)^(\s*)best_bids,\s*_\s*=\s*pso\('
+          repl = r'\1_pso_result = pso('
+          s2, n = re.subn(pattern, repl, s, count=1)
+          if n != 1:
+              raise RuntimeError('PSO assignment not found')
+          marker = '    # Round the bids and ensure they meet the minimum threshold'
+          if marker not in s2:
+              raise RuntimeError('PSO post-call marker not found')
+          s2 = s2.replace(marker, '    best_bids = _pso_result[0]\n\n' + marker, 1)
+          p.write_text(s2)
           PY
 
       - name: Run original optimization pipeline
