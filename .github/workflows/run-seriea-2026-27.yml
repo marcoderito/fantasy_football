@@ -53,7 +53,7 @@ jobs:
           PYTHONHASHSEED: '42'
         run: |
           set -euo pipefail
-          printf '3\n500\n25\n3\n3\n8\n8\n8\n8\n6\n6\npso\nde\nes\n' | python main.py | tee console_output.txt
+          printf '4\n500\n25\n3\n3\n8\n8\n8\n8\n6\n6\npso\nde\nes\npso\n' | python main.py | tee console_output.txt
 
       - name: Validate exact rosters
         run: |
@@ -61,8 +61,8 @@ jobs:
           import re
           text = open('console_output.txt', encoding='utf-8').read()
           chunks = re.split(r'=== Manager_\d+ ===[^\n]*\n', text)[1:]
-          if len(chunks) != 3:
-              raise RuntimeError(f'Expected 3 manager outputs, found {len(chunks)}')
+          if len(chunks) != 4:
+              raise RuntimeError(f'Expected 4 manager outputs, found {len(chunks)}')
           expected = {'P':3, 'D':8, 'C':8, 'A':6}
           for i, chunk in enumerate(chunks, 1):
               chunk = chunk.split('\n===', 1)[0]
@@ -82,8 +82,8 @@ jobs:
             echo 'Current roster only.'
             echo 'Counting stats: summed across seasons.'
             echo 'MV/FM: appearance-weighted across seasons.'
-            echo 'Managers: 3; budget: 500; roster: 25; roles: exactly 3P 8D 8C 6A.'
-            echo 'Strategies: Manager_1=PSO, Manager_2=DE, Manager_3=ES.'
+            echo 'Managers: 4; budget: 500 each; roster: 25; roles: exactly 3P 8D 8C 6A.'
+            echo 'Strategies: Manager_1=PSO, Manager_2=DE, Manager_3=ES, Manager_4=PSO.'
             echo 'Auction candidate pool: top 12 P, 36 D, 36 C, 28 A by repository score after blending.'
             echo 'Forced-assignment budget double-deduction fixed on this branch.'
           } > RUN_METADATA.txt
@@ -92,7 +92,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: seriea-2026-27-fantasy-output
+          name: seriea-2026-27-fantasy-output-4-managers
           path: |
             report.pdf
             console_output.txt
