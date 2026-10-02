@@ -6,7 +6,6 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import requests
-from bs4 import BeautifulSoup
 
 
 def norm(x):
@@ -24,10 +23,16 @@ def key_name(x):
     return ' '.join(p)
 
 
-def get(url):
+def get_text(url):
     r = requests.get(url, timeout=45, headers={'User-Agent': 'Mozilla/5.0'})
     r.raise_for_status()
     return r.text
+
+
+def get_bytes(url):
+    r = requests.get(url, timeout=45, headers={'User-Agent': 'Mozilla/5.0'})
+    r.raise_for_status()
+    return r.content
 
 
 def flat(df):
@@ -78,8 +83,6 @@ def clean_stats(t):
     if team is None or pv is None:
         raise RuntimeError(f'Unexpected table columns: {list(t.columns)}')
 
-    # On Fantacalcio, the Calciatore heading spans decorative columns; the actual
-    # player-name column is the last column immediately before Sq.
     team_pos = list(t.columns).index(team)
     before_team = list(t.columns)[:team_pos]
     if not before_team:
@@ -112,19 +115,34 @@ def clean_stats(t):
     out['R+'] = 0
     out['R-'] = 0
     out['Au'] = 0
-    out = out[out['Name'].str.lower().ne('nan') & out['Name'].str.strip().ne('')]
-    return out
+    return out[out['Name'].str.lower().ne('nan') & out['Name'].str.strip().ne('')]
 
 
-def gazzetta_roles(html):
-    soup = BeautifulSoup(html, 'html.parser')
-    rows = []
-    for tr in soup.find_all('tr'):
-        cells = [c.get_text(' ', strip=True) for c in tr.find_all(['td', 'th'])]
-        idx = next((i for i, v in enumerate(cells) if v.upper() in {'P','D','C','A'}), None)
-        if idx is not None and idx >= 2:
-            rows.append((cells[idx-1], cells[idx], cells[idx-2]))
-    return pd.DataFrame(rows, columns=['NameG','Role','TeamG']).drop_duplicates()
+def official_roles_xlsx(content):
+    book = pd.ExcelFile(io.BytesIO(content))
+    candidates = []
+    for sheet in book.sheet_names:
+        raw = pd.read_excel(book, sheet_name=sheet, header=None)
+        for header_row in range(min(12, len(raw))):
+            vals = [norm(v) for v in raw.iloc[header_row].tolist()]
+            if any(v in {'r', 'ruolo', 'role'} or 'ruolo' in v for v in vals) and any('nome' in v or 'calciatore' in v or 'giocatore' in v for v in vals):
+                df = pd.read_excel(book, sheet_name=sheet, header=header_row)
+                df = flat(df)
+                role = pick(df, ['r', 'ruolo', 'role'])
+                name = pick(df, ['nome', 'calciatore', 'giocatore', 'name'])
+                team = pick(df, ['squadra', 'sq', 'team'])
+                if role is not None and name is not None:
+                    out = pd.DataFrame({
+                        'NameRole': df[name].astype(str).str.strip(),
+                        'Role': df[role].astype(str).str.strip().str.upper(),
+                        'TeamRole': df[team].astype(str).str.strip() if team is not None else ''
+                    })
+                    out = out[out.Role.isin(['P','D','C','A'])]
+                    if len(out) >= 300:
+                        candidates.append(out)
+    if not candidates:
+        raise RuntimeError('Could not parse Classic roles from current 2026/27 XLSX')
+    return max(candidates, key=len).drop_duplicates()
 
 
 def score(r):
@@ -133,23 +151,23 @@ def score(r):
 
 
 def main():
-    cur = clean_stats(stats_table(get('https://www.fantacalcio.it/statistiche-serie-a/2026-27')))
-    prev = clean_stats(stats_table(get('https://www.fantacalcio.it/statistiche-serie-a/2025-26')))
-    roles = gazzetta_roles(get('https://www.gazzetta.it/calcio/fantanews/lista-giocatori-fantacalcio-serie-a-2026-27/'))
+    cur = clean_stats(stats_table(get_text('https://www.fantacalcio.it/statistiche-serie-a/2026-27')))
+    prev = clean_stats(stats_table(get_text('https://www.fantacalcio.it/statistiche-serie-a/2025-26')))
+    roles = official_roles_xlsx(get_bytes('https://www.quellicheilfantacalcio.org/public/download?id=12'))
 
     print('Current sample names:', cur.Name.head(8).tolist())
-    print('Gazzetta role sample:', roles[['NameG','Role']].head(8).values.tolist())
+    print('Role XLSX sample:', roles[['NameRole','Role']].head(8).values.tolist())
 
     cur['key'] = cur.Name.map(key_name)
     prev['key'] = prev.Name.map(key_name)
-    roles['key'] = roles.NameG.map(key_name)
+    roles['key'] = roles.NameRole.map(key_name)
     cur = cur.sort_values('Pv', ascending=False).drop_duplicates('key')
     prev = prev.sort_values('Pv', ascending=False).drop_duplicates('key')
 
     rg = roles.groupby('key')['Role'].agg(lambda x: x.iloc[0] if x.nunique() == 1 else '')
     cur['R'] = cur['key'].map(rg).fillna('')
 
-    # Returning-player fallback to the repository's previous role map.
+    # Returning-player fallback to repository historical role map only when the current listone spelling does not match.
     if Path('Fantacalcio_stat.csv').exists():
         old = pd.read_csv('Fantacalcio_stat.csv')
         old['key'] = old.Name.map(key_name)
@@ -159,16 +177,18 @@ def main():
 
     valid = cur.R.isin(['P','D','C','A']).sum()
     print('Current players with valid Classic roles:', int(valid), 'of', len(cur))
-    if valid < 100:
+    if valid < 450:
         bad = cur.loc[~cur.R.isin(['P','D','C','A']), 'Name'].head(30).tolist()
         raise RuntimeError(f'Role match insufficient; unmatched sample={bad}')
 
     prev = prev.set_index('key')
     rows = []
+    matched_history = 0
     counts = ['Pv','Gf','Gs','Rp','Rc','R+','R-','Ass','Amm','Esp','Au']
     for _, r in cur.iterrows():
         z = r.copy()
         if r['key'] in prev.index:
+            matched_history += 1
             p = prev.loc[r['key']]
             a, b = float(r.Pv), float(p.Pv)
             d = a + b
@@ -196,6 +216,7 @@ def main():
     cols = ['Id','R','Rm','Name','Team','Pv','Mv','Fm','Gf','Gs','Rp','Rc','R+','R-','Ass','Amm','Esp','Au']
     d[cols].to_csv('Fantacalcio_stat.csv', index=False)
     d[cols].to_csv('Fantacalcio_stat_2026_27_combined.csv', index=False)
+    print('Players matched to 2025/26 history:', matched_history)
     print('Prepared:', len(d), d.R.value_counts().to_dict())
     print('Method: current 2026/27 roster; counts summed with 2025/26; MV/FM appearance-weighted.')
 
