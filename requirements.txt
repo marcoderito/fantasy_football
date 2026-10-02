@@ -1,7 +1,7 @@
 numpy
 pandas
 scipy
-pyswarm
+pyswarm==0.6
 deap
 openpyxl
 reportlab
