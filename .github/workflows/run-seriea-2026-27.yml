@@ -26,7 +26,9 @@ jobs:
           pip install requests lxml html5lib beautifulsoup4
 
       - name: Build combined 2026-27 + 2025-26 dataset
+        shell: bash
         run: |
+          set -euo pipefail
           python run_seriea_2026_27.py | tee data_build_output.txt
           cp Fantacalcio_stat.csv Fantacalcio_stat_full_combined.csv
           python - <<'PY'
@@ -36,6 +38,8 @@ jobs:
           parts = []
           for role, cap in caps.items():
               g = df[df.R == role].head(cap)
+              if len(g) < cap:
+                  raise RuntimeError(f'Not enough {role} players: {len(g)} < {cap}')
               parts.append(g)
           out = pd.concat(parts, ignore_index=True)
           out.to_csv('Fantacalcio_stat.csv', index=False)
@@ -43,10 +47,40 @@ jobs:
           print('Auction pool:', len(out), out.R.value_counts().to_dict())
           PY
 
+      - name: Patch pyswarm return compatibility
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('optimization.py')
+          s = p.read_text()
+          old = '''    best_bids, _ = pso(
+              fitness_func, lb, ub,
+              swarmsize=40,
+              maxiter=80,
+              omega=0.7,
+              phip=1.8,
+              phig=1.8
+          )'''
+          new = '''    _pso_result = pso(
+              fitness_func, lb, ub,
+              swarmsize=40,
+              maxiter=80,
+              omega=0.7,
+              phip=1.8,
+              phig=1.8
+          )
+          best_bids = _pso_result[0]'''
+          if old not in s:
+              raise RuntimeError('PSO call signature block not found')
+          p.write_text(s.replace(old, new, 1))
+          PY
+
       - name: Run original optimization pipeline
+        shell: bash
         env:
           PYTHONHASHSEED: '42'
         run: |
+          set -euo pipefail
           printf '3\n500\n25\n3\n3\n8\n8\n8\n8\n6\n6\npso\nde\nes\n' | python main.py | tee console_output.txt
 
       - name: Save run metadata
@@ -61,6 +95,7 @@ jobs:
             echo 'Managers: 3; budget: 500; roster: 25; roles: 3P 8D 8C 6A.'
             echo 'Strategies: Manager_1=PSO, Manager_2=DE, Manager_3=ES.'
             echo 'Auction candidate pool: top 12 P, 36 D, 36 C, 28 A by repository score after blending.'
+            echo 'Branch-only compatibility patch: tolerate current pyswarm return tuple shape.'
           } > RUN_METADATA.txt
 
       - name: Upload outputs
